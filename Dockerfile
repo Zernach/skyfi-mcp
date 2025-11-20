@@ -21,9 +21,11 @@ RUN npm run build
 
 # Production image
 FROM base AS runner
+ARG JWT_SECRET=replace-this-secret
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    JWT_SECRET=${JWT_SECRET}
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
