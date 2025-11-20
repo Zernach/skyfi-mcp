@@ -1,60 +1,66 @@
-# Generate random JWT secret if not provided
-resource "random_password" "jwt_secret" {
-  length  = 64
-  special = true
-}
-
-# Generate random database password if not provided
-resource "random_password" "db_password" {
-  length  = 32
-  special = true
-}
-
-# SkyFi API Key Secret
-resource "aws_secretsmanager_secret" "skyfi_api_key" {
-  name                    = "${var.project_name}/${var.environment}/skyfi-api-key"
-  description             = "SkyFi API Key for ${var.project_name}"
-  recovery_window_in_days = 7
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-skyfi-api-key"
+locals {
+  random_secret_specs = {
+    jwt_secret = {
+      length  = 64
+      special = true
+    }
+    db_password = {
+      length  = 32
+      special = true
+    }
   }
 }
 
-resource "aws_secretsmanager_secret_version" "skyfi_api_key" {
-  secret_id     = aws_secretsmanager_secret.skyfi_api_key.id
-  secret_string = var.skyfi_api_key
+resource "random_password" "generated" {
+  for_each = local.random_secret_specs
+
+  length  = each.value.length
+  special = each.value.special
 }
 
-# JWT Secret
-resource "aws_secretsmanager_secret" "jwt_secret" {
-  name                    = "${var.project_name}/${var.environment}/jwt-secret"
-  description             = "JWT secret for ${var.project_name}"
-  recovery_window_in_days = 7
-
-  tags = {
-    Name = "${var.project_name}-${var.environment}-jwt-secret"
+locals {
+  secret_definitions = {
+    skyfi_api_key = {
+      name         = "${var.project_name}/${var.environment}/skyfi-api-key"
+      description  = "SkyFi API Key for ${var.project_name}"
+      secret_value = var.skyfi_api_key
+      tag_suffix   = "skyfi-api-key"
+    }
+    jwt_secret = {
+      name         = "${var.project_name}/${var.environment}/jwt-secret"
+      description  = "JWT secret for ${var.project_name}"
+      secret_value = random_password.generated["jwt_secret"].result
+      tag_suffix   = "jwt-secret"
+    }
+    db_password = {
+      name         = "${var.project_name}/${var.environment}/db-password"
+      description  = "PostgreSQL password for ${var.project_name}"
+      secret_value = length(trimspace(var.db_password)) > 0 ? var.db_password : random_password.generated["db_password"].result
+      tag_suffix   = "db-password"
+    }
   }
 }
 
-resource "aws_secretsmanager_secret_version" "jwt_secret" {
-  secret_id     = aws_secretsmanager_secret.jwt_secret.id
-  secret_string = random_password.jwt_secret.result
-}
+resource "aws_secretsmanager_secret" "secret" {
+  for_each = local.secret_definitions
 
-# Database Password Secret
-resource "aws_secretsmanager_secret" "db_password" {
-  name                    = "${var.project_name}/${var.environment}/db-password"
-  description             = "PostgreSQL password for ${var.project_name}"
-  recovery_window_in_days = 7
+  name                    = each.value.name
+  description             = each.value.description
+  recovery_window_in_days = 0
 
   tags = {
-    Name = "${var.project_name}-${var.environment}-db-password"
+    Name = "${var.project_name}-${var.environment}-${each.value.tag_suffix}"
+  }
+
+  lifecycle {
+    prevent_destroy = false
   }
 }
 
-resource "aws_secretsmanager_secret_version" "db_password" {
-  secret_id = aws_secretsmanager_secret.db_password.id
-  secret_string = var.db_password != "" ? var.db_password : random_password.db_password.result
+resource "aws_secretsmanager_secret_version" "secret" {
+  for_each = local.secret_definitions
+
+  secret_id     = aws_secretsmanager_secret.secret[each.key].id
+  secret_string = sensitive(each.value.secret_value)
 }
 

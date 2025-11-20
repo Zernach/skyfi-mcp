@@ -413,6 +413,49 @@ Default configuration (recommended):
 
 ## Troubleshooting
 
+### State Drift - Resources Already Exist
+
+**Symptom**: Terraform reports errors like "resource already exists" during `terraform apply`.
+
+**Cause**: Resources exist in AWS but aren't tracked in the Terraform state file. This happens when:
+- Resources were created manually or outside Terraform
+- The state file was lost or not properly synced
+- A previous deployment partially succeeded
+
+**Solution**: Choose one of the following options:
+
+#### Option 1: Import Existing Resources (Recommended)
+Keep existing resources and bring them under Terraform management:
+
+```bash
+cd terraform
+
+# Run the import script
+./import_resources.sh
+
+# Verify state is synchronized
+terraform plan
+
+# Apply any remaining changes
+terraform apply
+```
+
+#### Option 2: Clean Slate (⚠️ Destructive)
+Delete all resources and recreate them. **WARNING: This will delete all data!**
+
+```bash
+cd terraform
+
+# Run cleanup script (requires confirmation)
+./cleanup_aws.sh
+
+# Wait 5-10 minutes for AWS to complete deletions
+terraform plan
+
+# Recreate everything
+terraform apply
+```
+
 ### ECS Tasks Not Starting
 
 ```bash

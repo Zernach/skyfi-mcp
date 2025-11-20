@@ -40,6 +40,11 @@ output "ecs_service_name" {
   value       = module.ecs.service_name
 }
 
+output "ecs_log_group_name" {
+  description = "Name of the CloudWatch log group for ECS"
+  value       = module.ecs.log_group_name
+}
+
 output "vpc_id" {
   description = "ID of the VPC"
   value       = module.vpc.vpc_id

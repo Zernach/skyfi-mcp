@@ -118,13 +118,35 @@ case $ACTION in
     "apply")
         echo "Applying infrastructure..."
         cd "$SCRIPT_DIR"
-        if ! terraform apply; then
+        
+        # Ensure idempotent state (recover secrets, import existing resources)
+        echo "Ensuring idempotent state..."
+        ./ensure_idempotent_state.sh
+        echo ""
+        
+        # Check if there are any changes first
+        terraform plan -detailed-exitcode -out=tfplan.tmp > /dev/null 2>&1
+        PLAN_EXIT=$?
+        
+        if [ $PLAN_EXIT -eq 0 ]; then
+            echo "✅ No infrastructure changes needed (idempotent)"
+            rm -f tfplan.tmp
+        elif [ $PLAN_EXIT -eq 2 ]; then
+            echo "Changes detected, applying..."
+            if ! terraform apply tfplan.tmp; then
+                echo ""
+                echo "❌ Terraform apply failed!"
+                rm -f tfplan.tmp
+                exit 1
+            fi
+            rm -f tfplan.tmp
             echo ""
-            echo "❌ Terraform apply failed!"
+            echo "✅ Infrastructure deployed successfully!"
+        else
+            rm -f tfplan.tmp
+            echo "❌ Terraform plan failed!"
             exit 1
         fi
-        echo ""
-        echo "✅ Infrastructure deployed successfully!"
         ;;
         
     "build")
@@ -154,19 +176,6 @@ case $ACTION in
         
         echo "ECR Region: $ECR_REGION"
         
-        # Check if image already exists (idempotency check)
-        echo "Checking if image already exists..."
-        IMAGE_EXISTS=$(aws ecr describe-images --repository-name "$(echo "$ECR_URL" | sed 's|.*/||')" --image-ids imageTag=latest --region "$ECR_REGION" 2>/dev/null | grep -q "imageDigest" && echo "yes" || echo "no")
-        
-        if [ "$IMAGE_EXISTS" = "yes" ]; then
-            echo "ℹ️  Image 'latest' already exists in ECR."
-            read -p "Rebuild and push new image? (y/N): " REBUILD
-            if [ "$REBUILD" != "y" ] && [ "$REBUILD" != "Y" ]; then
-                echo "Skipping build. Using existing image."
-                exit 0
-            fi
-        fi
-        
         # Extract ECR domain (without repository name) for docker login
         ECR_DOMAIN=$(echo "$ECR_URL" | sed -E 's|/.*||')
         
@@ -175,17 +184,10 @@ case $ACTION in
         aws ecr get-login-password --region "$ECR_REGION" | \
             docker login --username AWS --password-stdin "$ECR_DOMAIN"
         
-        # Build image for linux/amd64 (required for AWS ECS Fargate)
-        echo "Building Docker image for linux/amd64..."
+        # Build image
+        echo "Building Docker image..."
         cd "$PROJECT_ROOT"
-        
-        # Check if buildx is available, otherwise use regular build with --platform
-        if docker buildx version &>/dev/null; then
-            docker buildx build --platform linux/amd64 -t skyfi-mcp . --load
-        else
-            # Fallback: use DOCKER_DEFAULT_PLATFORM if buildx not available
-            DOCKER_DEFAULT_PLATFORM=linux/amd64 docker build -t skyfi-mcp .
-        fi
+        docker build -t skyfi-mcp .
         
         # Tag and push
         echo "Tagging and pushing image..."
@@ -234,19 +236,10 @@ case $ACTION in
         echo "Streaming logs..."
         cd "$SCRIPT_DIR"
         
-        # Try to get log group from Terraform output first
-        LOG_GROUP=$(terraform output -raw ecs_log_group_name 2>/dev/null || echo "")
+        LOG_GROUP=$(terraform output -raw ecs_service_name 2>/dev/null | sed 's/.*\///')
         
-        # Fallback to service name pattern if output not available
         if [ -z "$LOG_GROUP" ]; then
-            SERVICE_NAME=$(terraform output -raw ecs_service_name 2>/dev/null || echo "")
-            if [ -n "$SERVICE_NAME" ]; then
-                # Extract service name from ARN if needed
-                LOG_GROUP="/ecs/$(echo "$SERVICE_NAME" | sed 's/.*\///')"
-            else
-                # Final fallback
-                LOG_GROUP="/ecs/skyfi-mcp-prod-v2"
-            fi
+            LOG_GROUP="/ecs/skyfi-mcp-production"
         fi
         
         # Get Terraform region (where resources are actually deployed)
@@ -254,18 +247,7 @@ case $ACTION in
         
         echo "Log group: $LOG_GROUP"
         echo "Region: $TF_REGION"
-        
-        # Check if log group exists
-        if ! aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP" --region "$TF_REGION" --query "logGroups[?logGroupName=='$LOG_GROUP']" --output json 2>/dev/null | grep -q "$LOG_GROUP"; then
-            echo "⚠️  Warning: Log group '$LOG_GROUP' may not exist yet."
-            echo "   Tasks may not have started yet, or log group needs to be created."
-        fi
-        
-        aws logs tail "$LOG_GROUP" --follow --region "$TF_REGION" 2>&1 || {
-            echo "❌ Failed to stream logs. The log group may not exist or tasks may not be running."
-            echo "   Check ECS service status with: ./deploy.sh status"
-            exit 1
-        }
+        aws logs tail "$LOG_GROUP" --follow --region "$TF_REGION"
         ;;
         
     "status")
@@ -324,9 +306,31 @@ case $ACTION in
         
         # Step 2: Apply infrastructure
         echo "Step 2/4: Deploying infrastructure..."
-        if ! terraform apply; then
-            echo ""
-            echo "❌ Terraform apply failed! Stopping deployment."
+        
+        # Ensure idempotent state (recover secrets, import existing resources)
+        echo "Ensuring idempotent state..."
+        ./ensure_idempotent_state.sh
+        echo ""
+        
+        # Check if changes exist first (idempotent)
+        terraform plan -detailed-exitcode -out=tfplan.tmp > /dev/null 2>&1
+        PLAN_EXIT=$?
+        
+        if [ $PLAN_EXIT -eq 0 ]; then
+            echo "✅ Infrastructure already up-to-date (no changes)"
+            rm -f tfplan.tmp
+        elif [ $PLAN_EXIT -eq 2 ]; then
+            echo "Applying infrastructure changes..."
+            if ! terraform apply tfplan.tmp; then
+                echo ""
+                echo "❌ Terraform apply failed! Stopping deployment."
+                rm -f tfplan.tmp
+                exit 1
+            fi
+            rm -f tfplan.tmp
+        else
+            rm -f tfplan.tmp
+            echo "❌ Terraform plan failed! Stopping deployment."
             exit 1
         fi
         echo ""
