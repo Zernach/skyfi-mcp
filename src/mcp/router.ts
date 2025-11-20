@@ -1,6 +1,8 @@
 import { MCPHandler, MCPMethodRegistry } from './types';
 import { MethodNotFoundError } from './errors';
 import logger from '../utils/logger';
+import { chatService } from '../services/chat.service';
+import { getToolNames } from '../services/tool-definitions';
 
 /**
  * MCP Method Router
@@ -71,4 +73,47 @@ mcpRouter.register('ping', async () => {
 
 mcpRouter.register('listMethods', async () => {
   return { methods: mcpRouter.getMethods() };
+});
+
+// Register chat method with tool-calling
+mcpRouter.register('chat', async (params) => {
+  const { message, conversationId, context } = params || {};
+
+  if (!message || typeof message !== 'string') {
+    throw new Error('Message is required and must be a string');
+  }
+
+  const response = await chatService.chat({
+    message,
+    conversationId,
+    context,
+  });
+
+  return response;
+});
+
+// Register conversation management methods
+mcpRouter.register('clearConversation', async (params) => {
+  const { conversationId } = params || {};
+
+  if (!conversationId || typeof conversationId !== 'string') {
+    throw new Error('Conversation ID is required');
+  }
+
+  chatService.clearConversation(conversationId);
+
+  return {
+    success: true,
+    message: 'Conversation cleared',
+    conversationId,
+  };
+});
+
+// Register tool information method
+mcpRouter.register('listTools', async () => {
+  const toolNames = getToolNames();
+  return {
+    tools: toolNames,
+    count: toolNames.length,
+  };
 });

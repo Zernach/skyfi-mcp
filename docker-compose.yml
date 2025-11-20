@@ -22,6 +22,9 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - SKYFI_API_KEY=${SKYFI_API_KEY}
       - SKYFI_BASE_URL=${SKYFI_BASE_URL:-https://api.skyfi.com/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-4096}
       - OSM_NOMINATIM_URL=${OSM_NOMINATIM_URL:-https://nominatim.openstreetmap.org}
       - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret-change-in-production}
       - API_RATE_LIMIT=${API_RATE_LIMIT:-100}

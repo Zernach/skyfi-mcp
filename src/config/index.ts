@@ -1,20 +1,93 @@
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-dotenv.config();
+const loadEnvConfig = () => {
+  const triedPaths: string[] = [];
+
+  const ensureEnvLoaded = (candidatePath: string) => {
+    triedPaths.push(candidatePath);
+    if (fs.existsSync(candidatePath) && fs.statSync(candidatePath).isFile()) {
+      dotenv.config({ path: candidatePath });
+      return true;
+    }
+    return false;
+  };
+
+  const resolveIfSet = (maybePath?: string) => {
+    if (!maybePath) return undefined;
+    return path.isAbsolute(maybePath)
+      ? maybePath
+      : path.resolve(process.cwd(), maybePath);
+  };
+
+  const envFilePriority = [
+    `.env.${process.env.NODE_ENV}.local`,
+    `.env.${process.env.NODE_ENV}`,
+    '.env.local',
+    '.env',
+  ].filter((name): name is string => Boolean(name));
+
+  const searchRoots = Array.from(
+    new Set([
+      resolveIfSet(process.env.DOTENV_PATH),
+      process.cwd(),
+      __dirname,
+      path.resolve(__dirname, '..'),
+      path.resolve(__dirname, '../..'),
+    ].filter((root): root is string => Boolean(root))),
+  );
+
+  for (const root of searchRoots) {
+    if (fs.existsSync(root) && fs.statSync(root).isFile()) {
+      if (ensureEnvLoaded(root)) return;
+      continue;
+    }
+
+    for (const envFileName of envFilePriority) {
+      const candidate = path.isAbsolute(envFileName)
+        ? envFileName
+        : path.resolve(root, envFileName);
+      if (ensureEnvLoaded(candidate)) {
+        return;
+      }
+    }
+  }
+
+  // Fallback to default behaviour and capture attempted paths for easier debugging
+  dotenv.config();
+  if (!process.env.OPENAI_API_KEY) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      'Warning: OPENAI_API_KEY is not defined after loading environment configuration.',
+      `Tried paths: ${triedPaths.join(', ')}`,
+    );
+  }
+};
+
+loadEnvConfig();
 
 const DEV_JWT_SECRET_FALLBACK = 'dev-jwt-secret-change-in-production';
 
+const normalizeEnvString = (val: unknown) => {
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    return trimmed.length === 0 ? undefined : trimmed;
+  }
+  return val ?? undefined;
+};
+
 const envStringWithFallback = (fallback: string) =>
   z.preprocess(
-    (val) => {
-      if (typeof val === 'string') {
-        const trimmed = val.trim();
-        return trimmed.length === 0 ? undefined : trimmed;
-      }
-      return val ?? undefined;
-    },
+    (val) => normalizeEnvString(val),
     z.string().catch(fallback),
+  );
+
+const optionalEnvString = () =>
+  z.preprocess(
+    (val) => normalizeEnvString(val),
+    z.string().optional(),
   );
 
 const configSchema = z.object({
@@ -39,6 +112,12 @@ const configSchema = z.object({
   skyfi: z.object({
     apiKey: z.string(),
     baseUrl: z.string().url().default('https://api.skyfi.com/v1'),
+  }),
+
+  openai: z.object({
+    apiKey: optionalEnvString(),
+    model: z.string().default('gpt-4o'),
+    maxTokens: z.string().transform(Number).default('4096'),
   }),
 
   osm: z.object({
@@ -69,6 +148,17 @@ const configSchema = z.object({
 }, {
   message: 'JWT_SECRET must be set in production environment',
   path: ['security', 'jwtSecret'],
+}).refine((data) => {
+  // Require OPENAI_API_KEY in production
+  if (data.node_env === 'production') {
+    return data.openai.apiKey !== undefined
+      && data.openai.apiKey !== null
+      && data.openai.apiKey.length > 0;
+  }
+  return true;
+}, {
+  message: 'OPENAI_API_KEY must be set in production environment',
+  path: ['openai', 'apiKey'],
 });
 
 const rawConfig = {
@@ -93,6 +183,12 @@ const rawConfig = {
   skyfi: {
     apiKey: process.env.SKYFI_API_KEY,
     baseUrl: process.env.SKYFI_BASE_URL,
+  },
+
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+    model: process.env.OPENAI_MODEL,
+    maxTokens: process.env.OPENAI_MAX_TOKENS,
   },
 
   osm: {
