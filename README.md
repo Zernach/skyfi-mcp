@@ -30,8 +30,22 @@ npm run docker:up
 curl http://localhost:3000/health
 ```
 
+## AWS Deployment
+
+Complete Terraform infrastructure for production deployment:
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit with your SkyFi API key and settings
+./deploy.sh all
+```
+
+See [terraform/README.md](terraform/README.md) for detailed AWS deployment guide.
+
 ## Documentation
 
+- [AWS Deployment (Terraform)](terraform/README.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Product Requirements](docs/PRD.md)

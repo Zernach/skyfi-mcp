@@ -1,0 +1,115 @@
+# =============================================================================
+# SkyFi MCP Terraform Configuration Example
+# =============================================================================
+# Copy this file to terraform.tfvars and update with your values
+# cp terraform.tfvars.example terraform.tfvars
+
+# =============================================================================
+# Required Variables
+# =============================================================================
+
+skyfi_api_key = "your-skyfi-api-key-here"
+
+# =============================================================================
+# AWS Configuration
+# =============================================================================
+
+aws_region   = "us-east-1"
+project_name = "skyfi-mcp"
+environment  = "production"
+
+# =============================================================================
+# Database Configuration
+# =============================================================================
+
+db_name     = "skyfi_mcp"
+db_username = "skyfi"
+# db_password = ""  # Leave empty to auto-generate
+
+# RDS Instance Configuration
+rds_instance_class        = "db.t4g.small"   # Options: db.t4g.micro, db.t4g.small, db.t4g.medium
+rds_allocated_storage     = 20               # GB
+rds_multi_az              = true             # High availability
+rds_backup_retention_days = 7                # Days to retain backups
+
+# =============================================================================
+# ElastiCache Redis Configuration
+# =============================================================================
+
+redis_node_type          = "cache.t4g.small"  # Options: cache.t4g.micro, cache.t4g.small, cache.t4g.medium
+redis_num_cache_nodes    = 2                  # Number of cache nodes
+redis_automatic_failover = true               # Enable automatic failover
+
+# =============================================================================
+# ECS Fargate Configuration
+# =============================================================================
+
+container_port = 3000
+
+# Task Resources (must be valid Fargate combinations)
+# Valid combinations:
+# CPU: 256, Memory: 512, 1024, 2048
+# CPU: 512, Memory: 1024, 2048, 3072, 4096
+# CPU: 1024, Memory: 2048-8192 (increments of 1024)
+# CPU: 2048, Memory: 4096-16384 (increments of 1024)
+ecs_task_cpu    = "512"   # vCPU units
+ecs_task_memory = "1024"  # MB
+
+# Service Configuration
+ecs_desired_count = 2     # Initial number of tasks
+
+# Auto-scaling Configuration
+ecs_enable_autoscaling = true
+ecs_min_capacity       = 2     # Minimum tasks
+ecs_max_capacity       = 10    # Maximum tasks
+ecs_cpu_target_value   = 70    # Target CPU % for auto-scaling
+
+# =============================================================================
+# SSL/TLS Configuration (Optional)
+# =============================================================================
+
+# Uncomment and set these to enable HTTPS
+# enable_https        = true
+# ssl_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+
+# =============================================================================
+# Monitoring Configuration
+# =============================================================================
+
+# Email address for CloudWatch alarms
+alarm_email = "your-email@example.com"
+
+# =============================================================================
+# Development Environment Example
+# =============================================================================
+# For development, use smaller instances to reduce costs:
+#
+# environment                = "dev"
+# rds_instance_class         = "db.t4g.micro"
+# rds_multi_az               = false
+# redis_node_type            = "cache.t4g.micro"
+# redis_num_cache_nodes      = 1
+# redis_automatic_failover   = false
+# ecs_task_cpu               = "256"
+# ecs_task_memory            = "512"
+# ecs_desired_count          = 1
+# ecs_min_capacity           = 1
+# ecs_max_capacity           = 2
+
+# =============================================================================
+# Production Environment Example
+# =============================================================================
+# For production, use the recommended settings above or larger:
+#
+# environment                = "production"
+# rds_instance_class         = "db.t4g.medium"
+# rds_multi_az               = true
+# rds_allocated_storage      = 50
+# redis_node_type            = "cache.t4g.medium"
+# redis_num_cache_nodes      = 2
+# ecs_task_cpu               = "1024"
+# ecs_task_memory            = "2048"
+# ecs_desired_count          = 3
+# ecs_min_capacity           = 2
+# ecs_max_capacity           = 20
+
