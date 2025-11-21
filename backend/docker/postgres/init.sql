@@ -41,7 +41,12 @@ CREATE TABLE IF NOT EXISTS aois (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
+    description TEXT,
     geometry JSONB NOT NULL,
+    criteria JSONB,
+    schedule JSONB,
+    metadata JSONB,
+    skyfi_aoi_id VARCHAR(255),
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -53,7 +58,11 @@ CREATE TABLE IF NOT EXISTS webhooks (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     aoi_id UUID REFERENCES aois(id) ON DELETE CASCADE,
     url VARCHAR(500) NOT NULL,
+    events TEXT[] DEFAULT ARRAY[]::TEXT[],
     secret VARCHAR(255),
+    metadata JSONB,
+    skyfi_webhook_id VARCHAR(255),
+    last_sent_at TIMESTAMP,
     active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
@@ -70,13 +79,29 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Ensure new columns exist when upgrading
+ALTER TABLE aois ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE aois ADD COLUMN IF NOT EXISTS criteria JSONB;
+ALTER TABLE aois ADD COLUMN IF NOT EXISTS schedule JSONB;
+ALTER TABLE aois ADD COLUMN IF NOT EXISTS metadata JSONB;
+ALTER TABLE aois ADD COLUMN IF NOT EXISTS skyfi_aoi_id VARCHAR(255);
+
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS events TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE webhooks ALTER COLUMN events SET DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS metadata JSONB;
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS skyfi_webhook_id VARCHAR(255);
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMP;
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_aois_user_id ON aois(user_id);
+CREATE INDEX IF NOT EXISTS idx_aois_skyfi_aoi_id ON aois(skyfi_aoi_id);
 CREATE INDEX IF NOT EXISTS idx_webhooks_user_id ON webhooks(user_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_aoi_id ON webhooks(aoi_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_skyfi_webhook_id ON webhooks(skyfi_webhook_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 
 -- Create triggers

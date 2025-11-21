@@ -147,6 +147,8 @@ describe('SkyFiClient', () => {
       nock(baseUrl).post('/pricing/estimate').reply(200, { success: true, data: mockEstimate });
 
       const result = await client.estimatePrice({
+        type: 'archive',
+        areaKm2: 25,
         location: { type: 'Point', coordinates: [-74, 40] },
       });
 

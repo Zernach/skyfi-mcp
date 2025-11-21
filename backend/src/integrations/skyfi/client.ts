@@ -14,6 +14,9 @@ import {
   PriceEstimate,
   WebhookParams,
   Webhook,
+  CreateAOIParams,
+  UpdateAOIParams,
+  AOI,
   SkyFiAPIResponse,
 } from './types';
 import {
@@ -372,10 +375,56 @@ export class SkyFiClient {
   }
 
   /**
+   * Create AOI monitoring definition
+   */
+  async createAoi(params: CreateAOIParams): Promise<AOI> {
+    // Clear AOI cache on create
+    this.cache.delete('aois:list');
+    return this.request<AOI>('POST', '/monitoring/aois', params);
+  }
+
+  /**
+   * List AOIs
+   */
+  async listAois(): Promise<AOI[]> {
+    const cacheKey = 'aois:list';
+    return this.getCached(cacheKey, 300, () =>
+      this.request<AOI[]>('GET', '/monitoring/aois')
+    );
+  }
+
+  /**
+   * Update AOI definition
+   */
+  async updateAoi(aoiId: string, params: UpdateAOIParams): Promise<AOI> {
+    this.cache.delete('aois:list');
+    return this.request<AOI>('PUT', `/monitoring/aois/${aoiId}`, params);
+  }
+
+  /**
+   * Delete AOI definition
+   */
+  async deleteAoi(aoiId: string): Promise<void> {
+    this.cache.delete('aois:list');
+    return this.request<void>('DELETE', `/monitoring/aois/${aoiId}`);
+  }
+
+  /**
    * Create Webhook
    */
   async createWebhook(params: WebhookParams): Promise<Webhook> {
     return this.request<Webhook>('POST', '/webhooks', params);
+  }
+
+  /**
+   * Create Webhook scoped to an AOI
+   */
+  async createAoiWebhook(aoiId: string, params: WebhookParams): Promise<Webhook> {
+    this.cache.delete('webhooks:list');
+    return this.request<Webhook>('POST', `/monitoring/aois/${aoiId}/webhooks`, {
+      ...params,
+      aoiId,
+    });
   }
 
   /**

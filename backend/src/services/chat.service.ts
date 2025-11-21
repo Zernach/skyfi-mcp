@@ -159,7 +159,8 @@ Be proactive in helping users accomplish their goals. If you need more informati
 
           // Execute tools
           const toolResults = await toolExecutor.executeTools(
-            completion.toolCalls
+            completion.toolCalls,
+            { conversationId }
           );
 
           // Track tools used and log results
@@ -167,7 +168,7 @@ Be proactive in helping users accomplish their goals. If you need more informati
             if (!toolsUsed.includes(result.toolName)) {
               toolsUsed.push(result.toolName);
             }
-            
+
             // Log detailed tool execution results
             if (result.error) {
               logger.error('Tool execution returned error', {

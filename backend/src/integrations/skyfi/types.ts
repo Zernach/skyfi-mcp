@@ -17,15 +17,37 @@ export interface Resolution {
   max?: number;
 }
 
+export interface MonitoringSchedule {
+  frequency?: string;
+  startDate?: string;
+  endDate?: string;
+  timeOfDay?: string;
+  timezone?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface MonitoringCriteria {
+  maxCloudCover?: number;
+  minResolution?: number;
+  events?: string[];
+  filters?: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
 // Archive Search
 export interface ArchiveSearchParams {
-  location: GeoJSON;
+  location?: GeoJSON;
+  aoi?: GeoJSON;
   dateRange?: DateRange;
   maxCloudCover?: number;
   satellites?: string[];
   resolution?: Resolution;
   limit?: number;
   offset?: number;
+  startDate?: string;
+  endDate?: string;
+  maxCloudCoverage?: number;
+  minResolution?: number;
 }
 
 export interface ArchiveSearchResult {
@@ -34,9 +56,10 @@ export interface ArchiveSearchResult {
   captureDate: string;
   cloudCover: number;
   resolution: number;
-  thumbnail: string;
-  bbox: number[];
-  price: number;
+  thumbnail?: string;
+  bbox?: number[];
+  price?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface ArchiveSearchResponse {
@@ -60,6 +83,8 @@ export interface OrderParams {
   location?: GeoJSON;
   deliveryFormat?: string;
   notifyUrl?: string;
+  webhookUrl?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface Order {
@@ -90,14 +115,27 @@ export interface Tasking {
   estimatedCost: number;
   createdAt: string;
   updatedAt: string;
+  metadata?: Record<string, any>;
 }
 
 // Pricing
+export type PriceEstimateType = 'archive' | 'tasking';
+
+export type ProcessingLevel = 'raw' | 'orthorectified' | 'pansharpened';
+
+export type PriorityLevel = 'standard' | 'rush' | 'urgent';
+
 export interface PriceEstimateParams {
-  location: GeoJSON;
-  satellite?: string;
+  type: PriceEstimateType;
+  areaKm2: number;
   resolution?: number;
-  deliveryFormat?: string;
+  processingLevel?: ProcessingLevel;
+  priority?: PriorityLevel;
+  location?: GeoJSON;
+  aoi?: GeoJSON;
+  startDate?: string;
+  endDate?: string;
+  satellites?: string[];
 }
 
 export interface PriceEstimate {
@@ -109,12 +147,14 @@ export interface PriceEstimate {
     resolution: number;
     urgency: number;
   };
+  assumptions?: string[];
 }
 
 // Webhooks
 export interface WebhookParams {
   url: string;
   events: string[];
+  aoiId?: string;
   secret?: string;
   metadata?: Record<string, any>;
 }
@@ -123,9 +163,44 @@ export interface Webhook {
   id: string;
   url: string;
   events: string[];
+  aoiId?: string;
   active: boolean;
   createdAt: string;
   lastTriggered?: string;
+  metadata?: Record<string, any>;
+}
+
+// AOI Monitoring
+export interface CreateAOIParams {
+  name: string;
+  geometry: GeoJSON;
+  description?: string;
+  criteria?: MonitoringCriteria;
+  schedule?: MonitoringSchedule;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateAOIParams extends Partial<CreateAOIParams> {
+  active?: boolean;
+}
+
+export interface AOI {
+  id: string;
+  name: string;
+  geometry: GeoJSON;
+  description?: string;
+  criteria?: MonitoringCriteria;
+  schedule?: MonitoringSchedule;
+  metadata?: Record<string, any>;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  skyfiAoiId?: string;
+}
+
+export interface AOIListResponse {
+  aois: AOI[];
+  total: number;
 }
 
 // API Response

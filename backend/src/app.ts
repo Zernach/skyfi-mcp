@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { config } from './config';
 import logger from './utils/logger';
 import mcpRoutes from './api/mcp.routes';
+import monitoringRoutes from './api/monitoring.routes';
 
 /**
  * Create and configure Express application
@@ -36,6 +37,9 @@ export function createApp(): Application {
 
   // MCP routes
   app.use('/mcp', mcpRoutes);
+
+  // Monitoring routes
+  app.use('/api/v1/monitoring', monitoringRoutes);
 
   // API routes placeholder
   app.get('/api/v1', (_req: Request, res: Response) => {

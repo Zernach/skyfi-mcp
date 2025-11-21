@@ -39,7 +39,10 @@ resource "aws_iam_role_policy" "ecs_task_execution_secrets" {
         Action = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = var.secrets_arns
+        # Use wildcard pattern to match secrets with AWS-generated suffixes
+        # AWS Secrets Manager adds random suffixes to ARNs (e.g., -MimBaS, -20251120173223549100000003-aYIPRz)
+        # Match all secrets under the project/environment prefix
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.account_id}:secret:${var.project_name}/${var.environment}/*"
       }
     ]
   })
@@ -145,7 +148,10 @@ resource "aws_iam_role_policy" "ecs_task_secrets" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = var.secrets_arns
+        # Use wildcard pattern to match secrets with AWS-generated suffixes
+        # AWS Secrets Manager adds random suffixes to ARNs (e.g., -MimBaS, -20251120173223549100000003-aYIPRz)
+        # Match all secrets under the project/environment prefix
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${var.account_id}:secret:${var.project_name}/${var.environment}/*"
       }
     ]
   })

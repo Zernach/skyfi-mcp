@@ -1,5 +1,10 @@
 export type CoordinatePair = [number, number];
 
+export interface GeoJsonPolygon {
+    type: 'Polygon';
+    coordinates: CoordinatePair[][];
+}
+
 export interface ToolPolygonRingInput {
     role?: 'outer' | 'hole';
     points?: unknown[];
@@ -97,7 +102,7 @@ const classifyRole = (role?: string): 'outer' | 'hole' | undefined => {
  */
 export const toGeoJsonPolygon = (
     polygon?: ToolPolygonInput | null
-): { type: 'Polygon'; coordinates: CoordinatePair[][] } | undefined => {
+): GeoJsonPolygon | undefined => {
     if (!polygon || !Array.isArray(polygon.coordinates)) {
         return undefined;
     }
@@ -134,5 +139,108 @@ export const toGeoJsonPolygon = (
         type: 'Polygon',
         coordinates,
     };
+};
+
+const EARTH_RADIUS_METERS = 6_371_008.8;
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+const ringAreaSqMeters = (ring: CoordinatePair[]): number => {
+    if (ring.length < 3) {
+        return 0;
+    }
+
+    let area = 0;
+    for (let i = 0; i < ring.length - 1; i += 1) {
+        const [lon1, lat1] = ring[i];
+        const [lon2, lat2] = ring[i + 1];
+
+        const lon1Rad = lon1 * DEG_TO_RAD;
+        const lon2Rad = lon2 * DEG_TO_RAD;
+        const lat1Rad = lat1 * DEG_TO_RAD;
+        const lat2Rad = lat2 * DEG_TO_RAD;
+
+        area += (lon2Rad - lon1Rad) * (2 + Math.sin(lat1Rad) + Math.sin(lat2Rad));
+    }
+
+    return (area * EARTH_RADIUS_METERS * EARTH_RADIUS_METERS) / 2;
+};
+
+/**
+ * Calculate polygon area in square kilometers using spherical excess.
+ */
+export const calculatePolygonAreaSqKm = (polygon: GeoJsonPolygon): number => {
+    if (!polygon.coordinates.length) {
+        return 0;
+    }
+
+    const [outer, ...holes] = polygon.coordinates;
+
+    const outerArea = Math.abs(ringAreaSqMeters(outer));
+    const holesArea = holes.reduce((total, ring) => total + Math.abs(ringAreaSqMeters(ring)), 0);
+
+    return (outerArea - holesArea) / 1_000_000;
+};
+
+const averageLatitudeRad = (ring: CoordinatePair[]): number => {
+    if (!ring.length) {
+        return 0;
+    }
+
+    const sum = ring.reduce((acc, [, lat]) => acc + lat, 0);
+    return (sum / ring.length) * DEG_TO_RAD;
+};
+
+/**
+ * Approximate polygon centroid (lon, lat) using planar projection.
+ */
+export const calculatePolygonCentroid = (polygon: GeoJsonPolygon): CoordinatePair | null => {
+    if (!polygon.coordinates.length) {
+        return null;
+    }
+
+    const outer = polygon.coordinates[0];
+    if (outer.length < 3) {
+        return null;
+    }
+
+    const referenceLatRad = averageLatitudeRad(outer);
+
+    const project = (lon: number, lat: number): CoordinatePair => {
+        const lonRad = lon * DEG_TO_RAD;
+        const latRad = lat * DEG_TO_RAD;
+        const x = lonRad * Math.cos(referenceLatRad);
+        const y = latRad;
+        return [x, y];
+    };
+
+    let area2 = 0;
+    let cx = 0;
+    let cy = 0;
+
+    for (let i = 0; i < outer.length - 1; i += 1) {
+        const [lon1, lat1] = outer[i];
+        const [lon2, lat2] = outer[i + 1];
+        const [x1, y1] = project(lon1, lat1);
+        const [x2, y2] = project(lon2, lat2);
+
+        const cross = x1 * y2 - x2 * y1;
+        area2 += cross;
+        cx += (x1 + x2) * cross;
+        cy += (y1 + y2) * cross;
+    }
+
+    if (area2 === 0) {
+        const fallback = outer[0];
+        return [fallback[0], fallback[1]];
+    }
+
+    const centroidX = cx / (3 * area2);
+    const centroidY = cy / (3 * area2);
+
+    const lonRad = centroidX / Math.cos(referenceLatRad);
+    const latRad = centroidY;
+
+    return [lonRad * RAD_TO_DEG, latRad * RAD_TO_DEG];
 };
 
