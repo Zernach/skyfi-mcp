@@ -1,17 +1,8 @@
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { MBox, IMapCoords, MapMarkerDetails } from '../mbox/MBox';
 import { RealtimeVoiceModal } from '../realtime-voice/RealtimeVoiceModal';
-import { DateRangeModal } from '../date-range/DateRangeModal';
-import {
-  formatDateForRequest,
-  getDefaultDateRange,
-  getInclusiveDaySpan,
-  type DateRange,
-} from '../../utils/dates';
-import type { BoundingBoxObservationStats } from '../../utils/wildfireDb';
 import { ConsoleHeader } from '../console-header/ConsoleHeader';
 import { HackathonWinners } from '../hackathon-winners/HackathonWinners';
-import { MapInformationOverlay } from '../map-information-overlay/MapInformationOverlay';
 import { SlideDeckLightbox } from '../slide-deck-lightbox/SlideDeckLightbox';
 import { SLIDE_DECK_URL } from '../../constants/links';
 import { ConsoleFooter } from '../console-footer/ConsoleFooter';
@@ -26,32 +17,15 @@ export function Dashboard() {
   const [hasInitialLoadStarted, setHasInitialLoadStarted] = useState(false);
   const [mapPosition, setMapPosition] = useState<IMapCoords | null>(null);
   const [isSpaceAppsModalVisible, setIsSpaceAppsModalVisible] = useState(true);
-  const [isDatesMinimized, setIsDatesMinimized] = useState(true);
   const [loadingModalState, setLoadingModalState] = useState<
     'loading' | 'success' | 'hidden'
   >('loading');
-  const [lastObservationQuery, setLastObservationQuery] = useState<
-    string | null
-  >(null);
-  const [observationValue, setObservationValue] =
-    useState<BoundingBoxObservationStats | null>(null);
-  const [observationCount, setObservationCount] = useState<number | null>(null);
-  const [selectedDateRange, setSelectedDateRange] = useState<DateRange>(() =>
-    getDefaultDateRange({ daysBack: 2 })
-  );
   const isLargeScreen = windowWidth >= 950;
 
   const resetRealtimeContext = useCallback(() => {
     setMarkerInfo(null);
     setMapPosition(null);
-    setObservationValue(null);
-    setLastObservationQuery(null);
-  }, [
-    setMarkerInfo,
-    setMapPosition,
-    setObservationValue,
-    setLastObservationQuery,
-  ]);
+  }, []);
 
   const updateMarkerInfo = useCallback((update: Partial<MapMarkerDetails>) => {
     setMarkerInfo((previous) => {
@@ -77,36 +51,6 @@ export function Dashboard() {
   const dismissSpaceAppsModal = useCallback(() => {
     setIsSpaceAppsModalVisible(false);
   }, []);
-
-  const handleObservationCountChange = useCallback((count: number | null) => {
-    setObservationCount(count);
-  }, []);
-
-  const openDateRangeModal = useCallback(() => {
-    setIsDatesMinimized(false);
-  }, []);
-
-  const closeDateRangeModal = useCallback(() => {
-    setIsDatesMinimized(true);
-  }, []);
-
-  const applyDateRange = useCallback((range: DateRange) => {
-    const start = new Date(range.startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(range.endDate);
-    end.setHours(0, 0, 0, 0);
-    setSelectedDateRange({ startDate: start, endDate: end });
-  }, []);
-
-  const selectedNumberOfDays = useMemo(
-    () => String(getInclusiveDaySpan(selectedDateRange)),
-    [selectedDateRange]
-  );
-
-  const selectedStartDate = useMemo(
-    () => formatDateForRequest(selectedDateRange.startDate),
-    [selectedDateRange.startDate]
-  );
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -167,42 +111,18 @@ export function Dashboard() {
               setIsLoading={setIsLoading}
               focusCoords={mapPosition}
               marker={markerInfo}
-              numberOfDays={selectedNumberOfDays}
-              startDate={selectedStartDate}
-              onObservationCountChange={handleObservationCountChange}
             />
             <MapLoadingModal state={loadingModalState} />
             <HackathonWinners
               isVisible={isSpaceAppsModalVisible}
               onDismiss={dismissSpaceAppsModal}
             />
-            {isLargeScreen && (
-              <MapInformationOverlay
-                markerInfo={markerInfo}
-                observationValue={observationValue}
-                lastObservationQuery={lastObservationQuery}
-              />
-            )}
             <RealtimeVoiceModal
               onMarkerUpdate={updateMarkerInfo}
               onMapPositionChange={setMapPosition}
-              onObservationQueryChange={setLastObservationQuery}
-              onObservationValueChange={setObservationValue}
               onResetContext={resetRealtimeContext}
               isLargeScreen={isLargeScreen}
-              onDateRangeChange={applyDateRange}
             />
-            {isLargeScreen && (
-              <DateRangeModal
-                isMinimized={isDatesMinimized}
-                onMinimize={closeDateRangeModal}
-                onExpand={openDateRangeModal}
-                onApply={applyDateRange}
-                currentRange={selectedDateRange}
-                maxDate={new Date()}
-                observationCount={observationCount}
-              />
-            )}
           </div>
         </div>
         <ConsoleFooter

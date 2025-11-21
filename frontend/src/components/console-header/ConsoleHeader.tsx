@@ -1,9 +1,6 @@
 import { ExternalLink, GitHub } from 'react-feather';
 import { Button } from '../button/Button';
-import {
-  GITHUB_REPO_URL,
-  NASA_SPACE_APPS_WINNERS_URL,
-} from '../../constants/links';
+import { GITHUB_REPO_URL } from '../../constants/links';
 
 const SMALL_LOGO_SIZE = 80;
 const LOGO_IMAGE_SIZE = 130;
@@ -18,21 +15,17 @@ export function ConsoleHeader({
   onOpenSlideDeck,
 }: ConsoleHeaderProps) {
   const logoSize = isLargeScreen ? LOGO_IMAGE_SIZE : SMALL_LOGO_SIZE;
-  const handleCardClick = () => {
-    window.open(NASA_SPACE_APPS_WINNERS_URL, '_blank');
-  };
   return (
     <div className="content-top">
       <div className="content-title">
         <img
-          src="/logo_fires_satellites.png"
+          src="/skyfi-logo.png"
           style={{
             width: logoSize,
             height: logoSize,
-            marginLeft: -30,
-            marginRight: -10,
+            marginRight: 10,
           }}
-          alt="Project logo"
+          alt="SkyFi logo"
         />
         <div>
           <div>
@@ -46,7 +39,7 @@ export function ConsoleHeader({
                 marginLeft: -4,
               }}
             >
-              {'GROW'}
+              {'SkyFi'}
             </span>
           </div>
           <span
@@ -55,7 +48,7 @@ export function ConsoleHeader({
               color: 'rgba(255, 255, 255, 0.7)',
             }}
           >
-            {'Global Recovery & Observation of Wildfires'}
+            {'Earth Intelligence Platform'}
           </span>
         </div>
       </div>
@@ -94,17 +87,6 @@ export function ConsoleHeader({
           />
         </div>
       )}
-      <img
-        src="/nasa-logo.png"
-        onClick={handleCardClick}
-        style={{
-          width: logoSize,
-          height: logoSize,
-          pointerEvents: 'all',
-          cursor: 'pointer',
-        }}
-        alt="NASA logo"
-      />
     </div>
   );
 }

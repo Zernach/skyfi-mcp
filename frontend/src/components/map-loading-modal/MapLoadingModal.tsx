@@ -35,8 +35,8 @@ export function MapLoadingModal({ state }: MapLoadingModalProps) {
       )}
       <div className="map-loading-text">
         {isLoading
-          ? 'Retrieving wildfire observations...'
-          : 'Wildfire observations ready!'}
+          ? 'Loading map...'
+          : 'Map ready!'}
       </div>
     </div>
   );

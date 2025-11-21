@@ -1,9 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import type { FeatureCollection } from 'geojson';
-import { apiWildfires } from '../../utils/apiWildfires';
-import { readCountriesGeoJson } from '../../utils/wildfireDb';
 import { COLORS } from '../../constants/colors';
 
 const MAPBOX_KEY = process.env.REACT_APP_MAPBOX_KEY || '';
@@ -26,7 +23,6 @@ const P2COORDS: IMapCoords = {
   lng: -80,
 };
 const DEFAULT_GLOBAL_ZOOM = 2;
-const REGION_CODE = 'AMERICAS' as const;
 const AUTO_ROTATION_DEG_PER_SEC = 3;
 
 const normalizeLongitude = (lng: number) => {
@@ -39,291 +35,20 @@ export const MBox = ({
   setIsLoading,
   focusCoords,
   marker,
-  numberOfDays,
-  startDate,
-  onObservationCountChange,
 }: {
   isLargeScreen: boolean;
   setIsLoading: (loading: boolean) => void;
   focusCoords: IMapCoords | null;
   marker: MapMarkerDetails | null;
-  numberOfDays: string;
-  startDate: string;
-  onObservationCountChange?: (count: number | null) => void;
 }) => {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const [liveData, setLiveData] = useState<FeatureCollection | null>(null);
-  const lastFetchKeyRef = useRef<string | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const popupRef = useRef<mapboxgl.Popup | null>(null);
   const rotationFrameRef = useRef<number | null>(null);
   const rotationLastTimestampRef = useRef<number | null>(null);
   const isRotationActiveRef = useRef(false);
   const [isMapReady, setIsMapReady] = useState(false);
-
-  const updateObservationCount = useCallback(
-    (collection: FeatureCollection | null | undefined) => {
-      if (!onObservationCountChange) {
-        return;
-      }
-
-      if (
-        collection &&
-        collection.type === 'FeatureCollection' &&
-        Array.isArray(collection.features)
-      ) {
-        onObservationCountChange(collection.features.length);
-      } else {
-        onObservationCountChange(null);
-      }
-    },
-    [onObservationCountChange]
-  );
-
-  const setMapData = useCallback(
-    async (map: mapboxgl.Map) => {
-      const americasSource = map.getSource(
-        'wildfires-americas'
-      ) as mapboxgl.GeoJSONSource;
-      if (!americasSource) return;
-      const fetchKey = `${startDate}|${numberOfDays}`;
-      if (
-        liveData &&
-        liveData.type === 'FeatureCollection' &&
-        lastFetchKeyRef.current === fetchKey
-      ) {
-        americasSource.setData(liveData);
-        updateObservationCount(liveData);
-        return;
-      }
-      const regionCodes = [REGION_CODE];
-      setIsLoading(true);
-      try {
-        const cached = await readCountriesGeoJson(regionCodes);
-        const cachedAmericas = cached[REGION_CODE];
-
-        if (cachedAmericas && cachedAmericas.type === 'FeatureCollection') {
-          americasSource.setData(cachedAmericas);
-          updateObservationCount(cachedAmericas);
-        } else {
-          updateObservationCount(null);
-        }
-        await apiWildfires({
-          numberOfDays,
-          startDate,
-        });
-        const refreshed = await readCountriesGeoJson(regionCodes);
-        const refreshedAmericas = refreshed[REGION_CODE];
-        if (
-          refreshedAmericas &&
-          refreshedAmericas.type === 'FeatureCollection'
-        ) {
-          americasSource.setData(refreshedAmericas);
-          setLiveData(refreshedAmericas);
-          updateObservationCount(refreshedAmericas);
-        } else {
-          setLiveData(null);
-          updateObservationCount(null);
-        }
-        lastFetchKeyRef.current = fetchKey;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [liveData, numberOfDays, setIsLoading, startDate, updateObservationCount]
-  );
-
-  const addWildfireLayers = useCallback(
-    (map: mapboxgl.Map, sourceId: string) => {
-      const symbolLayerId = (() => {
-        const layers = map.getStyle()?.layers ?? [];
-        for (const layer of layers) {
-          if (layer.type !== 'symbol') continue;
-          const layout = (
-            layer as mapboxgl.AnyLayer & {
-              layout?: Record<string, unknown>;
-            }
-          ).layout;
-          const textField = layout?.['text-field'];
-          if (typeof textField === 'string' && textField.trim().length > 0) {
-            return layer.id;
-          }
-        }
-        return undefined;
-      })();
-
-      map.addLayer(
-        {
-          id: `${sourceId}-heatmap`,
-          type: 'heatmap',
-          source: sourceId,
-          maxzoom: 9,
-          paint: {
-            'heatmap-weight': [
-              'interpolate',
-              ['linear'],
-              [
-                'coalesce',
-                ['to-number', ['get', 'frp']],
-                ['to-number', ['get', 'brightness']],
-                0,
-              ],
-              0,
-              0,
-              250,
-              1,
-            ],
-            'heatmap-intensity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              0,
-              0.8,
-              6,
-              1.6,
-              9,
-              3.2,
-            ],
-            'heatmap-color': [
-              'interpolate',
-              ['linear'],
-              ['heatmap-density'],
-              0,
-              'rgba(16, 16, 32, 0)',
-              0.15,
-              '#ff4500', // OrangeRed
-              0.35,
-              '#ff6347', // Tomato
-              0.6,
-              '#ff8c00', // DarkOrange
-              0.85,
-              '#ffa500', // Orange
-              1,
-              '#ff0000', // Red
-            ],
-            'heatmap-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              0,
-              6,
-              6,
-              16,
-              9,
-              32,
-            ],
-            'heatmap-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              7,
-              0.9,
-              9,
-              0.1,
-            ],
-          },
-        },
-        symbolLayerId
-      );
-
-      map.addLayer(
-        {
-          id: `${sourceId}-halo`,
-          type: 'circle',
-          source: sourceId,
-          minzoom: 5,
-          paint: {
-            'circle-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              5,
-              4,
-              8,
-              14,
-              12,
-              36,
-            ],
-            'circle-color': 'rgba(255, 56, 152, 0.45)',
-            'circle-blur': 0.85,
-            'circle-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              5,
-              0.2,
-              8,
-              0.55,
-              12,
-              0.1,
-            ],
-          },
-        },
-        symbolLayerId
-      );
-
-      map.addLayer(
-        {
-          id: `${sourceId}-points`,
-          type: 'circle',
-          source: sourceId,
-          minzoom: 4,
-          paint: {
-            'circle-radius': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              4,
-              2.4,
-              8,
-              5.2,
-              12,
-              9,
-              15,
-              14,
-            ],
-            'circle-color': COLORS.white,
-            'circle-stroke-width': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              4,
-              1,
-              12,
-              2.4,
-              15,
-              4,
-            ],
-            'circle-stroke-color': [
-              'interpolate',
-              ['linear'],
-              ['coalesce', ['to-number', ['get', 'confidence']], 0],
-              0,
-              COLORS.skyBlue,
-              50,
-              COLORS.electricBlue,
-              100,
-              COLORS.orangeBright,
-            ],
-            'circle-opacity': [
-              'interpolate',
-              ['linear'],
-              ['zoom'],
-              4,
-              0.4,
-              8,
-              0.85,
-              15,
-              1,
-            ],
-          },
-        },
-        symbolLayerId
-      );
-    },
-    []
-  );
 
   useEffect(() => {
     mapboxgl.accessToken = MAPBOX_KEY;
@@ -350,14 +75,8 @@ export const MBox = ({
           'space-color': '#020817',
           'star-intensity': 0.5,
         });
-
-        mapRef.current?.addSource('wildfires-americas', {
-          type: 'geojson',
-          data: 'americas.geojson',
-        });
-        mapRef.current &&
-          addWildfireLayers(mapRef.current, 'wildfires-americas');
         setIsMapReady(true);
+        setIsLoading(false);
       });
     }
     return () => {
@@ -373,12 +92,7 @@ export const MBox = ({
       }
       setIsMapReady(false);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!mapRef.current || !isMapReady) return;
-    setMapData(mapRef.current);
-  }, [isMapReady, setMapData]);
+  }, [setIsLoading]);
 
   useEffect(() => {
     if (!mapRef.current || !isMapReady) {

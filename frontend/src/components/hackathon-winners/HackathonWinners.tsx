@@ -43,15 +43,11 @@ export function HackathonWinners({
         className="map-space-apps-heading"
         style={{ fontWeight: 900, fontSize: 16 }}
       >
-        {'2024 NASA Space Apps Challenge Winners'}
+        {'Democratizing Access to Satellite Imagery'}
       </div>
       <div style={{ height: 10 }} />
       <div className="map-space-apps-subheading" style={{ fontWeight: 700 }}>
-        {'🏆 Top 10 out of 10,000 Worldwide Projects (Top 0.1%)'}
-      </div>
-      <div style={{ height: 10 }} />
-      <div className="map-space-apps-subheading" style={{ fontWeight: 600 }}>
-        {'🇧🇷 Florianópolis, Brazil'}
+        {"🛰️ SkyFi harnesses the power of Earth observation technology to bring comprehensive geospatial data and analytics to your fingertips."}
       </div>
     </div>
   );

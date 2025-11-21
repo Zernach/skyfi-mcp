@@ -9,17 +9,8 @@ import {
   type SessionConfig,
 } from '../../lib/realtime/RealtimeClient';
 import { instructions } from '../../constants/prompts';
-import {
-  countObservationsInBoundingBox,
-  type BoundingBoxObservationStats,
-} from '../../utils/wildfireDb';
 import type { BoundingBox } from '../../types/geospatial';
 import { lookupBoundingBoxForPlace } from '../../utils/geocoding';
-import {
-  formatDateForResponse,
-  parseDateArg,
-  type DateRange,
-} from '../../utils/dates';
 import type { IMapCoords, MapMarkerDetails } from '../mbox/MBox';
 import { COLORS } from '../../constants/colors';
 import {
@@ -30,19 +21,17 @@ import './RealtimeVoiceModal.scss';
 
 const CONVERSATION_STARTERS = [
   '✈️ Fly to Florianópolis',
-  '🔥 How many wildfires are in Brazil?',
   '🌧️ When was the last rain in Los Angeles?',
   "☀️ What's the weather like in Buenos Aires?",
-  '🗓️ Change the dates to January 6th - January 8th',
 ];
 
 const PROD_BASE_URL = 'https://api.landscapesupply.app';
 const DEV_BASE_URL = 'http://localhost:3000';
-const VOICE_RELAY_ENDPOINT = `${PROD_BASE_URL}/api/grow/relay`;
+const VOICE_RELAY_ENDPOINT = `${PROD_BASE_URL}/api/skyfi/relay`;
 const DEFAULT_REALTIME_MODEL = 'gpt-realtime-2025-08-28';
 const RELAY_SESSION_EXPIRY_BUFFER_MS = 5_000;
 
-type GrowRelaySession = {
+type SkyFiRelaySession = {
   clientSecret: string;
   expiresAt: number | null;
   model: string;
@@ -60,17 +49,14 @@ type VoiceSessionStatus =
 interface RealtimeLogEntry {
   time: string;
   source: 'client' | 'server';
-  event: { type?: string; [key: string]: unknown };
+  event: { type?: string;[key: string]: unknown };
 }
 
 interface RealtimeVoiceModalProps {
   onMarkerUpdate: (update: Partial<MapMarkerDetails>) => void;
   onMapPositionChange: (coords: IMapCoords | null) => void;
-  onObservationQueryChange: (query: string | null) => void;
-  onObservationValueChange: (value: BoundingBoxObservationStats | null) => void;
   onResetContext: () => void;
   isLargeScreen: boolean;
-  onDateRangeChange: (range: DateRange) => void;
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -84,52 +70,6 @@ function toFiniteNumber(value: unknown): number | null {
     }
   }
   return null;
-}
-
-function parseBoundingBoxArg(arg: unknown): BoundingBox {
-  if (!arg || typeof arg !== 'object') {
-    throw new Error('Bounding box must be an object.');
-  }
-  const record = arg as Record<string, unknown>;
-  const north = toFiniteNumber(record.north);
-  const south = toFiniteNumber(record.south);
-  const east = toFiniteNumber(record.east);
-  const west = toFiniteNumber(record.west);
-
-  if (north === null || south === null || east === null || west === null) {
-    throw new Error(
-      'Bounding box requires numeric north, south, east, and west values.'
-    );
-  }
-
-  return {
-    north,
-    south,
-    east,
-    west,
-  };
-}
-
-function summarizeBoundingBox(bounds: BoundingBox, label?: string): string {
-  const parts: string[] = [];
-  if (label && label.trim().length) {
-    parts.push(`Region: ${label.trim()}`);
-  }
-  const latMin = Math.min(bounds.north, bounds.south);
-  const latMax = Math.max(bounds.north, bounds.south);
-  parts.push(`Latitude: ${latMin.toFixed(2)}° to ${latMax.toFixed(2)}°`);
-  if (bounds.east < bounds.west) {
-    parts.push(
-      `Longitude: wraps dateline (${bounds.west.toFixed(
-        2
-      )}° → 180° and -180° → ${bounds.east.toFixed(2)}°)`
-    );
-  } else {
-    const lonMin = Math.min(bounds.west, bounds.east);
-    const lonMax = Math.max(bounds.west, bounds.east);
-    parts.push(`Longitude: ${lonMin.toFixed(2)}° to ${lonMax.toFixed(2)}°`);
-  }
-  return parts.join('\n');
 }
 
 function normalizeExpirationTimestamp(raw: unknown): number | null {
@@ -173,11 +113,8 @@ function hasExpirationElapsed(
 export function RealtimeVoiceModal({
   onMarkerUpdate,
   onMapPositionChange,
-  onObservationQueryChange,
-  onObservationValueChange,
   onResetContext,
   isLargeScreen,
-  onDateRangeChange,
 }: RealtimeVoiceModalProps) {
   const [voiceStatus, setVoiceStatus] = useState<VoiceSessionStatus>('idle');
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -375,11 +312,11 @@ export function RealtimeVoiceModal({
               'The "place" parameter must be a non-empty string.'
             );
           }
-          
+
           // Geocode and navigate in one operation
           const result = await lookupBoundingBoxForPlace(place);
           const center = result.center;
-          
+
           if (center) {
             // Immediately update map position
             onMapPositionChange({ lat: center.lat, lng: center.lon });
@@ -389,7 +326,7 @@ export function RealtimeVoiceModal({
               location: result.displayName,
             });
           }
-          
+
           return {
             success: true,
             location: result.displayName,
@@ -436,118 +373,6 @@ export function RealtimeVoiceModal({
         }
       );
 
-      client.addTool(
-        {
-          name: 'get_observations',
-          description:
-            'Counts cached wildfire observations that fall within a latitude/longitude bounding box.',
-          parameters: {
-            type: 'object',
-            required: ['bounding_box'],
-            properties: {
-              bounding_box: {
-                type: 'object',
-                description:
-                  'Rectangular bounds with north/south latitude and east/west longitude edges.',
-                properties: {
-                  north: {
-                    type: 'number',
-                    description: 'Northern latitude edge',
-                  },
-                  south: {
-                    type: 'number',
-                    description: 'Southern latitude edge',
-                  },
-                  east: {
-                    type: 'number',
-                    description: 'Eastern longitude edge',
-                  },
-                  west: {
-                    type: 'number',
-                    description: 'Western longitude edge',
-                  },
-                },
-                required: ['north', 'south', 'east', 'west'],
-                additionalProperties: false,
-              },
-              label: {
-                type: 'string',
-                description:
-                  'Optional descriptor for the bounding box (e.g., the place name used to generate it).',
-              },
-            },
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const bounds = parseBoundingBoxArg(args?.bounding_box);
-          const label =
-            typeof args?.label === 'string' && args.label.trim().length
-              ? args.label.trim()
-              : undefined;
-          const stats = await countObservationsInBoundingBox(bounds);
-          const summary = summarizeBoundingBox(bounds, label);
-          onObservationQueryChange(summary);
-          onObservationValueChange(stats);
-          return {
-            ...stats,
-            value: stats.count,
-            bounding_box: bounds,
-            label,
-          };
-        }
-      );
-
-      client.addTool(
-        {
-          name: 'set_observation_date_range',
-          description:
-            'Updates the wildfire observation date range shown in the dashboard. Use this when the user specifies a start and end date.',
-          parameters: {
-            type: 'object',
-            required: ['start_date', 'end_date'],
-            properties: {
-              start_date: {
-                type: 'string',
-                description:
-                  'Inclusive start date in YYYY-MM-DD format (e.g., 2025-01-06).',
-              },
-              end_date: {
-                type: 'string',
-                description:
-                  'Inclusive end date in YYYY-MM-DD format (e.g., 2025-01-10).',
-              },
-            },
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const startDate = parseDateArg(args?.start_date, 'start_date');
-          const endDate = parseDateArg(args?.end_date, 'end_date');
-
-          if (endDate < startDate) {
-            throw new Error('end_date must be on or after start_date.');
-          }
-
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          if (endDate > today) {
-            throw new Error('end_date cannot be in the future.');
-          }
-
-          onDateRangeChange({ startDate, endDate });
-
-          return {
-            start_date: formatDateForResponse(startDate),
-            end_date: formatDateForResponse(endDate),
-            total_days:
-              Math.floor(
-                (endDate.getTime() - startDate.getTime()) /
-                  (1000 * 60 * 60 * 24)
-              ) + 1,
-          };
-        }
-      );
 
       client.addTool(
         {
@@ -595,20 +420,20 @@ export function RealtimeVoiceModal({
 
           const temperatureReading =
             typeof json?.current?.temperature_2m === 'number' &&
-            typeof json?.current_units?.temperature_2m === 'string'
+              typeof json?.current_units?.temperature_2m === 'string'
               ? {
-                  value: json.current.temperature_2m,
-                  units: json.current_units.temperature_2m,
-                }
+                value: json.current.temperature_2m,
+                units: json.current_units.temperature_2m,
+              }
               : null;
 
           const windReading =
             typeof json?.current?.wind_speed_10m === 'number' &&
-            typeof json?.current_units?.wind_speed_10m === 'string'
+              typeof json?.current_units?.wind_speed_10m === 'string'
               ? {
-                  value: json.current.wind_speed_10m,
-                  units: json.current_units.wind_speed_10m,
-                }
+                value: json.current.wind_speed_10m,
+                units: json.current_units.wind_speed_10m,
+              }
               : null;
 
           onMarkerUpdate({
@@ -669,8 +494,8 @@ export function RealtimeVoiceModal({
             json?.daily?.precipitation_sum
           )
             ? json.daily.precipitation_sum.map((value: unknown) =>
-                Number(value)
-              )
+              Number(value)
+            )
             : [];
           const timestamps: string[] = Array.isArray(json?.daily?.time)
             ? json.daily.time
@@ -713,7 +538,7 @@ export function RealtimeVoiceModal({
       client.addTool(
         {
           name: 'map_fly_to',
-          description: 'Centers the wildfire map on the provided coordinates.',
+          description: 'Centers the geospatial map on the provided coordinates.',
           parameters: {
             type: 'object',
             properties: {
@@ -749,9 +574,6 @@ export function RealtimeVoiceModal({
     [
       onMarkerUpdate,
       onMapPositionChange,
-      onObservationQueryChange,
-      onObservationValueChange,
-      onDateRangeChange,
     ]
   );
 
@@ -773,10 +595,10 @@ export function RealtimeVoiceModal({
           `Relay request failed (${response.status}): ${errorText}`.trim()
         );
       }
-      const session = (await response.json()) as GrowRelaySession & {
+      const session = (await response.json()) as SkyFiRelaySession & {
         expiresAt: unknown;
       };
-      const normalizedSession: GrowRelaySession = {
+      const normalizedSession: SkyFiRelaySession = {
         ...session,
         expiresAt: normalizeExpirationTimestamp(session.expiresAt),
       };
@@ -846,9 +668,9 @@ export function RealtimeVoiceModal({
       },
     };
 
-    let relaySession: GrowRelaySession;
+    let relaySession: SkyFiRelaySession;
     try {
-      let candidate: GrowRelaySession | null = null;
+      let candidate: SkyFiRelaySession | null = null;
       const maxAttempts = 2;
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const session = await fetchRelaySession(sessionConfig);
@@ -1131,16 +953,16 @@ export function RealtimeVoiceModal({
           {(isSessionActive ||
             !!realtimeEvents.length ||
             !!conversationItems.length) && (
-            <Button
-              icon={RefreshCw}
-              label="Reset"
-              iconColor={'white'}
-              textStyle={{ color: COLORS.white }}
-              buttonStyle="flush"
-              disabled={!conversationItems.length && !realtimeEvents.length}
-              onClick={resetConversation}
-            />
-          )}
+              <Button
+                icon={RefreshCw}
+                label="Reset"
+                iconColor={'white'}
+                textStyle={{ color: COLORS.white }}
+                buttonStyle="flush"
+                disabled={!conversationItems.length && !realtimeEvents.length}
+                onClick={resetConversation}
+              />
+            )}
         </div>
       </div>
       {voiceError && (
@@ -1170,9 +992,8 @@ export function RealtimeVoiceModal({
 
   return (
     <div
-      className={`realtime-voice-modal-stack${
-        shouldShowTopVoiceModal ? ' realtime-voice-modal-stack--active' : ''
-      }`}
+      className={`realtime-voice-modal-stack${shouldShowTopVoiceModal ? ' realtime-voice-modal-stack--active' : ''
+        }`}
       data-component="RealtimeVoiceModalStack"
     >
       {topVoiceModal}

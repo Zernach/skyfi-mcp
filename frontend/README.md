@@ -1,6 +1,6 @@
-# 🌍 GROW — Global Recovery and Observation of Wildfires
+# 🌍 SkyFi — Earth Intelligence Platform
 
-Global Recovery and Observation of Wildfires (GROW) is an AI-assisted wildfire intelligence console created by Team I.O – Florianópolis for the 2024 NASA Space Apps Challenge. The experience blends live satellite detections, historical context, and an OpenAI-powered voice co-pilot so emergency teams can explore evolving fire activity in seconds. 🛰️🔥
+SkyFi — Earth Intelligence Platform is an AI-assisted geospatial intelligence console created by Team I.O – Florianópolis for the 2024 NASA Space Apps Challenge. The experience blends live satellite detections, historical context, and an OpenAI-powered voice co-pilot so teams can explore evolving geospatial activity in seconds. 🛰️🌍
 
 > 🏆 Top-10 worldwide finalist (Top 0.1%) in the 2024 NASA Space Apps Challenge.
 > 🎞️ Presentation slide deck: [Open in Google Slides](https://docs.google.com/presentation/d/e/2PACX-1vTezgMfwMSMOTV1xAERxRqVY9TMX-bF-45w2v5gP4jbs8Wy1t_H3u5kTwkxNfQFcA/embed?start=false&loop=false&delayms=60000)
@@ -8,9 +8,9 @@ Global Recovery and Observation of Wildfires (GROW) is an AI-assisted wildfire i
 
 ## ✨ Key Capabilities
 
-- 🌐 Satellite basemap with live and historical wildfire detections delivered through Mapbox GL clusters.
+- 🌐 Satellite basemap with live and historical satellite detections delivered through Mapbox GL clusters.
 - 🗺️ NASA FIRMS ingestion (MODIS Near Real-Time) with resilient caching so the dashboard stays responsive offline.
-- 🗣️ Bi-directional voice co-pilot (OpenAI Realtime) that can search places, summarize risk, and trigger data drilling tools.
+- 🗣️ Bi-directional voice co-pilot (OpenAI Realtime) that can search places, summarize insights, and trigger data drilling tools.
 - 🌦️ Contextual weather overlays via Open-Meteo (temperature, wind, precipitation gaps) to enrich situational awareness.
 - 📊 Inline analytics showing counts, brightness, FRP, and pixel metrics for any ad-hoc bounding box.
 - 🧭 Slide deck lightbox and NASA Space Apps recognition baked into the experience for storytelling moments.
@@ -43,8 +43,8 @@ REACT_APP_NASA_MAP_KEY="your_firms_map_key"
 
 1. 📦 Install dependencies: `yarn install`
 2. ▶️ Start the React dev server: `yarn start` (launches `http://localhost:3000`)
-3. 🔊 Voice assistant sessions are brokered through our private server endpoint `/api/grow/relay`, keeping OpenAI credentials on the server.
-4. 🗞️ Switch the “LIVE” toggle to trigger fresh NASA downloads (first fetch may take a few seconds while CSV data parses).
+3. 🔊 Voice assistant sessions are brokered through our private server endpoint `/api/skyfi/relay`, keeping OpenAI credentials on the server.
+4. 🗞️ Switch the "LIVE" toggle to trigger fresh NASA downloads (first fetch may take a few seconds while CSV data parses).
 
 ## 🧪 Testing & Quality
 
@@ -54,7 +54,7 @@ REACT_APP_NASA_MAP_KEY="your_firms_map_key"
 
 ## 🗺️ Data & Integrations
 
-- 🔥 **NASA FIRMS (MODIS NRT):** Primary wildfire detection feed; CSV area queries filtered to the Americas bounding box.
+- 🔥 **NASA FIRMS (MODIS NRT):** Primary satellite detection feed; CSV area queries filtered to the Americas bounding box.
 - 🌎 **Mapbox Satellite:** Base imagery and clustering logic for hotspots.
 - 🌤️ **Open-Meteo:** Current weather snapshots to enrich assistant responses with temperature, wind, and days-since-rain.
 - 🧠 **OpenAI Realtime:** Conversational agent with tool-calling for geocoding, map camera control, and statistics retrieval.
@@ -71,7 +71,7 @@ REACT_APP_NASA_MAP_KEY="your_firms_map_key"
 ## 🆘 Troubleshooting Tips
 
 - 😶 Voice button greyed out? Ensure microphone permissions are granted and the realtime model name in code matches one enabled for your key.
-- 🔌 Voice relay errors? Confirm the app can reach `/api/grow/relay` and that the upstream OpenAI key is configured on the server.
+- 🔌 Voice relay errors? Confirm the app can reach `/api/skyfi/relay` and that the upstream OpenAI key is configured on the server.
 - 🔄 No live data? Confirm your NASA FIRMS key is active; the API limits requests per key and region.
 - 🧹 Stale map data? Clear localStorage (key `wildfire_sqlite_db_v2`) or toggle to “HISTORICAL” and back to “LIVE” to force a refresh.
 

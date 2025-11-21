@@ -4,9 +4,6 @@ export const SLIDE_DECK_URL =
 export const NASA_SPACE_APPS_WINNERS_URL =
   'https://www.nasa.gov/learning-resources/stem-engagement-at-nasa/nasa-international-space-apps-challenge-announces-2024-global-winners/';
 
-export const NASA_FIRMS_AREA_CSV_BASE_URL =
-  'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
-
 export const NOMINATIM_SEARCH_URL =
   'https://nominatim.openstreetmap.org/search';
 
@@ -16,4 +13,4 @@ export const OPEN_METEO_ARCHIVE_URL =
   'https://archive-api.open-meteo.com/v1/archive';
 
 export const GITHUB_REPO_URL =
-  'https://github.com/Florianopolis-NASA-Space-Apps/wildfires_chat_dashboard';
+  'https://github.com/Zernach/skyfi-mcp';
