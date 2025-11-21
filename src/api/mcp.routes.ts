@@ -1,8 +1,10 @@
+import { randomUUID } from 'crypto';
 import { Router, Request, Response } from 'express';
 import { handleMCPRequest } from '../mcp/handler';
 import { SSEConnection, sseManager } from '../mcp/sse';
 import logger from '../utils/logger';
-import { v4 as uuidv4 } from 'uuid';
+// Ensure router module is loaded and methods are registered
+import '../mcp/router';
 
 const router = Router();
 
@@ -33,7 +35,7 @@ router.post('/message', async (req: Request, res: Response) => {
  */
 router.get('/sse', (req: Request, res: Response) => {
   // Generate unique client ID
-  const clientId = req.query.clientId as string || uuidv4();
+  const clientId = (req.query.clientId as string) || randomUUID();
 
   // Get Last-Event-ID for reconnection
   const lastEventId = req.headers['last-event-id'] as string;

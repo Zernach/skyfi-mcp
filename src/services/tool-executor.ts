@@ -76,9 +76,15 @@ export class ToolExecutor {
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : 'Unknown error';
+            const errorStack = error instanceof Error ? error.stack : undefined;
+            const errorName = error instanceof Error ? error.name : 'Unknown';
+
             logger.error(`Tool execution failed: ${name}`, {
                 toolCallId: id,
                 error: errorMessage,
+                errorName,
+                stack: errorStack,
+                arguments: args,
             });
 
             return {
@@ -107,6 +113,7 @@ export class ToolExecutor {
      * Search for satellite imagery in the archive
      */
     private async searchSatelliteImagery(args: any): Promise<any> {
+        logger.info('searchSatelliteImagery called', { args });
         const params: any = {};
 
         if (args.location) {
@@ -142,22 +149,38 @@ export class ToolExecutor {
             params.limit = args.limit;
         }
 
-        const response = await skyfiClient.archiveSearch(params);
+        logger.info('Calling skyfiClient.archiveSearch', { params });
 
-        return {
-            success: true,
-            count: response.results?.length || 0,
-            results: response.results?.map((img) => ({
-                id: img.id,
-                captureDate: img.captureDate,
-                resolution: img.resolution,
-                cloudCover: img.cloudCover,
-                satellite: img.satellite,
-                price: img.price,
-                bbox: img.bbox,
-            })),
-            message: `Found ${response.results?.length || 0} satellite images matching your criteria`,
-        };
+        try {
+            const response = await skyfiClient.archiveSearch(params);
+            logger.info('skyfiClient.archiveSearch succeeded', {
+                resultCount: response.results?.length || 0,
+                hasResults: !!response.results
+            });
+
+            return {
+                success: true,
+                count: response.results?.length || 0,
+                results: response.results?.map((img) => ({
+                    id: img.id,
+                    captureDate: img.captureDate,
+                    resolution: img.resolution,
+                    cloudCover: img.cloudCover,
+                    satellite: img.satellite,
+                    price: img.price,
+                    bbox: img.bbox,
+                })),
+                message: `Found ${response.results?.length || 0} satellite images matching your criteria`,
+            };
+        } catch (error) {
+            logger.error('skyfiClient.archiveSearch failed', {
+                error: error instanceof Error ? error.message : String(error),
+                errorName: error instanceof Error ? error.name : 'Unknown',
+                stack: error instanceof Error ? error.stack : undefined,
+                params
+            });
+            throw error;
+        }
     }
 
     /**
@@ -347,26 +370,45 @@ export class ToolExecutor {
      * Geocode a location name to coordinates
      */
     private async geocodeLocation(args: any): Promise<any> {
-        const result = await osmClient.geocode(args.query);
+        logger.info('geocodeLocation called', { query: args.query });
 
-        if (!result) {
+        try {
+            const result = await osmClient.geocode(args.query);
+
+            if (!result) {
+                logger.warn('Geocoding returned no result', { query: args.query });
+                return {
+                    success: false,
+                    message: `Could not find location: ${args.query}`,
+                };
+            }
+
+            logger.info('Geocoding succeeded', {
+                query: args.query,
+                location: result.displayName,
+                coordinates: [result.lon, result.lat]
+            });
+
             return {
-                success: false,
-                message: `Could not find location: ${args.query}`,
+                success: true,
+                location: {
+                    name: result.displayName,
+                    latitude: result.lat,
+                    longitude: result.lon,
+                    coordinates: [result.lon, result.lat],
+                    boundingBox: result.boundingBox,
+                },
+                message: `Found location: ${result.displayName}`,
             };
+        } catch (error) {
+            logger.error('geocodeLocation failed', {
+                error: error instanceof Error ? error.message : String(error),
+                errorName: error instanceof Error ? error.name : 'Unknown',
+                stack: error instanceof Error ? error.stack : undefined,
+                query: args.query
+            });
+            throw error;
         }
-
-        return {
-            success: true,
-            location: {
-                name: result.displayName,
-                latitude: result.lat,
-                longitude: result.lon,
-                coordinates: [result.lon, result.lat],
-                boundingBox: result.boundingBox,
-            },
-            message: `Found location: ${result.displayName}`,
-        };
     }
 }
 

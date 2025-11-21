@@ -162,10 +162,27 @@ Be proactive in helping users accomplish their goals. If you need more informati
             completion.toolCalls
           );
 
-          // Track tools used
+          // Track tools used and log results
           toolResults.forEach((result) => {
             if (!toolsUsed.includes(result.toolName)) {
               toolsUsed.push(result.toolName);
+            }
+            
+            // Log detailed tool execution results
+            if (result.error) {
+              logger.error('Tool execution returned error', {
+                toolName: result.toolName,
+                toolCallId: result.toolCallId,
+                error: result.error,
+                conversationId,
+              });
+            } else {
+              logger.info('Tool execution succeeded', {
+                toolName: result.toolName,
+                toolCallId: result.toolCallId,
+                resultPreview: JSON.stringify(result.result).substring(0, 200),
+                conversationId,
+              });
             }
           });
 

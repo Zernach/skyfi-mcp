@@ -39,35 +39,51 @@ export const skyfiTools: ChatCompletionTool[] = [
                     aoi: {
                         type: 'object',
                         description:
-                            'Area of interest polygon (GeoJSON Polygon). Provide coordinates as an array of linear rings (arrays of [lon, lat] pairs). The first ring is the outer boundary; subsequent rings carve interior holes.',
+                            'Area of interest polygon (GeoJSON Polygon). Supply one outer ring and optional inner rings (holes).',
                         properties: {
                             type: {
                                 type: 'string',
                                 enum: ['Polygon'],
+                                description: 'GeoJSON geometry type. Defaults to Polygon.',
                             },
                             coordinates: {
                                 type: 'array',
                                 description:
-                                    'Polygon coordinates defined as an array of rings. Supply the outer boundary first, followed by any interior holes.',
+                                    'Ordered polygon rings. Provide the outer ring first, then optional interior rings marked as holes.',
                                 minItems: 1,
                                 items: {
-                                    type: 'array',
+                                    type: 'object',
                                     description:
-                                        'Linear ring represented as an ordered array of coordinate pairs. Provide at least four coordinate pairs and ensure the first and last pairs match.',
-                                    minItems: 4,
-                                    items: {
-                                        type: 'array',
-                                        description: 'Coordinate pair [longitude, latitude]',
-                                        items: {
-                                            type: 'number',
+                                        'Polygon ring definition with coordinate pairs and optional role metadata.',
+                                    properties: {
+                                        role: {
+                                            type: 'string',
+                                            enum: ['outer', 'hole'],
+                                            description:
+                                                'Classify the ring as the outer boundary or an interior hole.',
                                         },
-                                        minItems: 2,
-                                        maxItems: 2,
+                                        points: {
+                                            type: 'array',
+                                            description:
+                                                'Ordered [longitude, latitude] coordinate pairs forming the ring. Provide at least four points; the first and last point should match.',
+                                            minItems: 4,
+                                            items: {
+                                                type: 'array',
+                                                description: 'Coordinate pair [longitude, latitude]',
+                                                minItems: 2,
+                                                maxItems: 2,
+                                                items: {
+                                                    type: 'number',
+                                                },
+                                            },
+                                        },
                                     },
+                                    required: ['points'],
+                                    additionalProperties: false,
                                 },
                             },
                         },
-                        required: ['type', 'coordinates'],
+                        required: ['coordinates'],
                         additionalProperties: false,
                     },
                     startDate: {
@@ -165,35 +181,51 @@ export const skyfiTools: ChatCompletionTool[] = [
                     aoi: {
                         type: 'object',
                         description:
-                            'Area of interest for capture (GeoJSON Polygon). Provide coordinates as an array of linear rings (arrays of [lon, lat] pairs). The first ring is the outer boundary; subsequent rings carve interior holes.',
+                            'Area of interest polygon (GeoJSON Polygon). Supply one outer ring and optional inner rings (holes).',
                         properties: {
                             type: {
                                 type: 'string',
                                 enum: ['Polygon'],
+                                description: 'GeoJSON geometry type. Defaults to Polygon.',
                             },
                             coordinates: {
                                 type: 'array',
                                 description:
-                                    'Polygon coordinates defined as an array of rings. Supply the outer boundary first, followed by any interior holes.',
+                                    'Ordered polygon rings. Provide the outer ring first, then optional interior rings marked as holes.',
                                 minItems: 1,
                                 items: {
-                                    type: 'array',
+                                    type: 'object',
                                     description:
-                                        'Linear ring represented as an ordered array of coordinate pairs. Provide at least four coordinate pairs and ensure the first and last pairs match.',
-                                    minItems: 4,
-                                    items: {
-                                        type: 'array',
-                                        description: 'Coordinate pair [longitude, latitude]',
-                                        items: {
-                                            type: 'number',
+                                        'Polygon ring definition with coordinate pairs and optional role metadata.',
+                                    properties: {
+                                        role: {
+                                            type: 'string',
+                                            enum: ['outer', 'hole'],
+                                            description:
+                                                'Classify the ring as the outer boundary or an interior hole.',
                                         },
-                                        minItems: 2,
-                                        maxItems: 2,
+                                        points: {
+                                            type: 'array',
+                                            description:
+                                                'Ordered [longitude, latitude] coordinate pairs forming the ring. Provide at least four points; the first and last point should match.',
+                                            minItems: 4,
+                                            items: {
+                                                type: 'array',
+                                                description: 'Coordinate pair [longitude, latitude]',
+                                                minItems: 2,
+                                                maxItems: 2,
+                                                items: {
+                                                    type: 'number',
+                                                },
+                                            },
+                                        },
                                     },
+                                    required: ['points'],
+                                    additionalProperties: false,
                                 },
                             },
                         },
-                        required: ['type', 'coordinates'],
+                        required: ['coordinates'],
                         additionalProperties: false,
                     },
                     startDate: {

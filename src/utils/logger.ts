@@ -21,7 +21,16 @@ const logger = winston.createLogger({
 if (config.node_env !== 'production') {
   logger.add(
     new winston.transports.Console({
-      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.timestamp({ format: 'HH:mm:ss' }),
+        winston.format.printf(({ timestamp, level, message, ...meta }) => {
+          const metaStr = Object.keys(meta).length > 0 
+            ? ` ${JSON.stringify(meta, null, 2)}` 
+            : '';
+          return `${timestamp} [${level}]: ${message}${metaStr}`;
+        })
+      ),
     })
   );
 }

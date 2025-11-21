@@ -15,7 +15,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "deploy:all": "npm run build && cd terraform && bash deploy.sh all"
   },
   "keywords": [
     "skyfi",

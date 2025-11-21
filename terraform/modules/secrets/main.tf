@@ -16,6 +16,10 @@ resource "random_password" "generated" {
 
   length  = each.value.length
   special = each.value.special
+  
+  # RDS doesn't allow '/', '@', '"', or ' ' (space) in passwords
+  # Override special characters for db_password to exclude these
+  override_special = each.key == "db_password" ? "!#$%&*()-_=+[]{}<>:?" : null
 }
 
 locals {

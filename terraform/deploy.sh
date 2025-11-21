@@ -317,13 +317,24 @@ case $ACTION in
         echo ""
         
         # Step 1: Initialize
-        echo "Step 1/4: Initializing Terraform..."
+        echo "Step 1/5: Initializing Terraform..."
         cd "$SCRIPT_DIR"
         terraform init
         echo ""
         
-        # Step 2: Apply infrastructure
-        echo "Step 2/4: Deploying infrastructure..."
+        # Step 2: Restore any deleted secrets (prevents "scheduled for deletion" errors)
+        echo "Step 2/5: Checking and restoring secrets..."
+        if [ -f "$SCRIPT_DIR/recover_secrets.sh" ]; then
+            bash "$SCRIPT_DIR/recover_secrets.sh" || {
+                echo "⚠️  Secret recovery had issues, but continuing..."
+            }
+        else
+            echo "ℹ️  recover_secrets.sh not found, skipping secret recovery"
+        fi
+        echo ""
+        
+        # Step 3: Apply infrastructure
+        echo "Step 3/5: Deploying infrastructure..."
         if ! terraform apply; then
             echo ""
             echo "❌ Terraform apply failed! Stopping deployment."
@@ -331,13 +342,13 @@ case $ACTION in
         fi
         echo ""
         
-        # Step 3: Build and push image
-        echo "Step 3/4: Building and pushing Docker image..."
+        # Step 4: Build and push image
+        echo "Step 4/5: Building and pushing Docker image..."
         bash "$SCRIPT_DIR/deploy.sh" build
         echo ""
         
-        # Step 4: Deploy to ECS
-        echo "Step 4/4: Deploying to ECS..."
+        # Step 5: Deploy to ECS
+        echo "Step 5/5: Deploying to ECS..."
         bash "$SCRIPT_DIR/deploy.sh" deploy
         echo ""
         
