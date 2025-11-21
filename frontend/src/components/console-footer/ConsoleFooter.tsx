@@ -1,0 +1,63 @@
+import { ExternalLink, GitHub } from 'react-feather';
+import { Button } from '../button/Button';
+import { GITHUB_REPO_URL } from '../../constants/links';
+
+interface ConsoleFooterProps {
+  isLargeScreen: boolean;
+  onOpenSlideDeck: () => void;
+}
+
+export function ConsoleFooter({
+  isLargeScreen,
+  onOpenSlideDeck,
+}: ConsoleFooterProps) {
+  if (isLargeScreen) {
+    return null;
+  }
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        justifyContent: 'space-between',
+        marginTop: -10,
+        marginBottom: -10,
+      }}
+    >
+      <Button
+        icon={GitHub}
+        iconPosition="end"
+        style={{
+          fontSize: 16,
+          textAlign: 'center',
+          alignSelf: 'flex-end',
+          marginBottom: 16,
+        }}
+        label="Codebase"
+        onClick={() => {
+          const newWindow = window.open(
+            GITHUB_REPO_URL,
+            '_blank',
+            'noopener,noreferrer'
+          );
+          if (newWindow) {
+            newWindow.opener = null;
+          }
+        }}
+      />
+      <Button
+        icon={ExternalLink}
+        iconPosition="end"
+        style={{
+          fontSize: 16,
+          textAlign: 'center',
+          alignSelf: 'flex-end',
+          marginBottom: 16,
+        }}
+        label={`Presentation`}
+        onClick={onOpenSlideDeck}
+      />
+    </div>
+  );
+}
