@@ -8,7 +8,8 @@ set -e
 
 # Default values
 INPUT_TEXT="${1:-test input}"
-BASE_URL="${2:-http://localhost:3000}"
+# BASE_URL="${2:-http://localhost:3000}"
+BASE_URL="${2:-http://skyfi-mcp-prod-v2-alb-680967047.us-east-1.elb.amazonaws.com}"
 METHOD="${3:-ping}"
 MCP_ENDPOINT="${BASE_URL}/mcp/message"
 

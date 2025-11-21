@@ -13,7 +13,8 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configuration
-API_URL="${API_URL:-http://localhost:3000}"
+# API_URL="${API_URL:-http://localhost:3000}"
+API_URL="${API_URL:-http://skyfi-mcp-prod-v2-alb-680967047.us-east-1.elb.amazonaws.com}"
 ENDPOINT="/mcp/message"
 
 # Get message from command line argument
