@@ -7,6 +7,7 @@ import { SlideDeckLightbox } from '../slide-deck-lightbox/SlideDeckLightbox';
 import { SLIDE_DECK_URL } from '../../constants/links';
 import { ConsoleFooter } from '../console-footer/ConsoleFooter';
 import { MapLoadingModal } from '../map-loading-modal/MapLoadingModal';
+import { ChatWidget } from '../chat/ChatWidget';
 import './dashboard.scss';
 
 export function Dashboard() {
@@ -123,6 +124,7 @@ export function Dashboard() {
               onResetContext={resetRealtimeContext}
               isLargeScreen={isLargeScreen}
             />
+            <ChatWidget />
           </div>
         </div>
         <ConsoleFooter
