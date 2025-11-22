@@ -78,6 +78,11 @@ variable "skyfi_api_key_secret_arn" {
   type        = string
 }
 
+variable "openai_api_key_secret_arn" {
+  description = "ARN of OpenAI API key secret"
+  type        = string
+}
+
 variable "jwt_secret_arn" {
   description = "ARN of JWT secret"
   type        = string

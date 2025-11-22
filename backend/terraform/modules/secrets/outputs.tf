@@ -3,6 +3,11 @@ output "skyfi_api_key_secret_arn" {
   value       = aws_secretsmanager_secret.secret["skyfi_api_key"].arn
 }
 
+output "openai_api_key_secret_arn" {
+  description = "ARN of OpenAI API key secret"
+  value       = aws_secretsmanager_secret.secret["openai_api_key"].arn
+}
+
 output "jwt_secret_arn" {
   description = "ARN of JWT secret"
   value       = aws_secretsmanager_secret.secret["jwt_secret"].arn

@@ -64,10 +64,11 @@ module "security_groups" {
 module "secrets" {
   source = "./modules/secrets"
 
-  project_name  = var.project_name
-  environment   = var.environment
-  skyfi_api_key = var.skyfi_api_key
-  db_password   = var.db_password
+  project_name    = var.project_name
+  environment     = var.environment
+  skyfi_api_key   = var.skyfi_api_key
+  openai_api_key  = var.openai_api_key
+  db_password     = var.db_password
 }
 
 # RDS Module
@@ -159,9 +160,10 @@ module "ecs" {
   redis_port  = module.elasticache.redis_port
 
   # Secrets
-  skyfi_api_key_secret_arn = module.secrets.skyfi_api_key_secret_arn
-  jwt_secret_arn           = module.secrets.jwt_secret_arn
-  db_password_secret_arn   = module.secrets.db_password_secret_arn
+  skyfi_api_key_secret_arn  = module.secrets.skyfi_api_key_secret_arn
+  openai_api_key_secret_arn = module.secrets.openai_api_key_secret_arn
+  jwt_secret_arn            = module.secrets.jwt_secret_arn
+  db_password_secret_arn    = module.secrets.db_password_secret_arn
 
   # IAM
   execution_role_arn = module.iam.ecs_task_execution_role_arn

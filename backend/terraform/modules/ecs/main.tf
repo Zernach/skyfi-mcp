@@ -86,6 +86,10 @@ resource "aws_ecs_task_definition" "main" {
           valueFrom = var.skyfi_api_key_secret_arn
         },
         {
+          name      = "OPENAI_API_KEY"
+          valueFrom = var.openai_api_key_secret_arn
+        },
+        {
           name      = "JWT_SECRET"
           valueFrom = var.jwt_secret_arn
         },

@@ -184,10 +184,10 @@ case $ACTION in
         aws ecr get-login-password --region "$ECR_REGION" | \
             docker login --username AWS --password-stdin "$ECR_DOMAIN"
         
-        # Build image
-        echo "Building Docker image..."
+        # Build image for AMD64 platform (ECS Fargate compatibility)
+        echo "Building Docker image for AMD64 platform..."
         cd "$PROJECT_ROOT"
-        docker build -t skyfi-mcp .
+        docker buildx build --platform linux/amd64 -t skyfi-mcp . --load
         
         # Tag and push
         echo "Tagging and pushing image..."

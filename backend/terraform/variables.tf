@@ -142,6 +142,13 @@ variable "skyfi_api_key" {
   sensitive   = true
 }
 
+variable "openai_api_key" {
+  description = "OpenAI API key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # SSL/TLS Configuration
 variable "ssl_certificate_arn" {
   description = "ARN of SSL certificate from ACM (leave empty to use HTTP only)"

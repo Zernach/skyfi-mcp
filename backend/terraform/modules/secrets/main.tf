@@ -30,6 +30,12 @@ locals {
       secret_value = var.skyfi_api_key
       tag_suffix   = "skyfi-api-key"
     }
+    openai_api_key = {
+      name         = "${var.project_name}/${var.environment}/openai-api-key"
+      description  = "OpenAI API Key for ${var.project_name}"
+      secret_value = length(trimspace(var.openai_api_key)) > 0 ? var.openai_api_key : "placeholder-key"
+      tag_suffix   = "openai-api-key"
+    }
     jwt_secret = {
       name         = "${var.project_name}/${var.environment}/jwt-secret"
       description  = "JWT secret for ${var.project_name}"
