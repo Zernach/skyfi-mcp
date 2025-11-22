@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Minus } from 'react-feather';
 import { Spinner } from '../spinner/Spinner';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './ChatWidget.scss';
 
 interface Message {
@@ -12,7 +14,7 @@ interface Message {
 const BASE_URL = 'http://localhost:3000';
 
 export const ChatWidget: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,12 +115,16 @@ export const ChatWidget: React.FC = () => {
           <div className="chat-messages">
             {messages.length === 0 && (
               <div className="message assistant">
-                Hello! I can help you find satellite imagery or answer questions about SkyFi. How can I assist you today?
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  Hello! I can help you find satellite imagery or answer questions about SkyFi. How can I assist you today?
+                </ReactMarkdown>
               </div>
             )}
             {messages.map(msg => (
               <div key={msg.id} className={`message ${msg.role}`}>
-                {msg.content}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.content}
+                </ReactMarkdown>
               </div>
             ))}
             {isLoading && (

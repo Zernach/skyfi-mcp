@@ -1,6 +1,5 @@
 import { MouseEvent } from 'react';
 import { X } from 'react-feather';
-import { NASA_SPACE_APPS_WINNERS_URL } from '../../constants/links';
 
 interface HackathonWinnersProps {
   isVisible: boolean;
@@ -15,10 +14,6 @@ export function HackathonWinners({
     return null;
   }
 
-  const handleCardClick = () => {
-    window.open(NASA_SPACE_APPS_WINNERS_URL, '_blank');
-  };
-
   const handleCloseClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     onDismiss();
@@ -29,7 +24,6 @@ export function HackathonWinners({
       className="map-space-apps-modal"
       role="status"
       aria-live="polite"
-      onClick={handleCardClick}
     >
       <button
         type="button"

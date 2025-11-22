@@ -18,7 +18,7 @@ body {
   background-color: #0f172a !important;
   background: radial-gradient(
       circle at 20% 20%,
-      rgba(var(--color-sky-blue-rgb), 0.12) 0%,
+      rgba(var(--color-slate-900-rgb), 0.12) 0%,
       rgba(var(--color-slate-950-rgb), 0.05) 42%,
       rgba(var(--color-slate-950-rgb), 0) 68%
     ),
@@ -53,7 +53,7 @@ body {
 
 .mapboxgl-popup-content {
   background: #0f172a !important;
-  border: 1px solid #0ea5e9 !important;
+  border: 1px solid #444 !important;
   border-radius: 6px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
   padding: 0 !important;
@@ -62,14 +62,14 @@ body {
 }
 
 .mapboxgl-popup-tip {
-  border-top-color: #0ea5e9 !important;
-  border-bottom-color: #0ea5e9 !important;
-  border-left-color: #0ea5e9 !important;
-  border-right-color: #0ea5e9 !important;
+  border-top-color: #444 !important;
+  border-bottom-color: #444 !important;
+  border-left-color: #444 !important;
+  border-right-color: #444 !important;
 }
 
 .mapboxgl-popup-close-button {
-  color: #0ea5e9 !important;
+  color: #aaa !important;
   background: transparent !important;
   border: none !important;
   font-size: 16px !important;
@@ -82,5 +82,5 @@ body {
 
 .mapboxgl-popup-close-button:hover {
   color: #ffffff !important;
-  background: rgba(14, 165, 233, 0.2) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
 }
