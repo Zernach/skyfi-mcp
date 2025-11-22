@@ -122,6 +122,16 @@ module "iam" {
   secrets_arns = module.secrets.all_secret_arns
 }
 
+# ACM Certificate Module (conditional - only if domain_name is provided)
+module "acm" {
+  count  = var.domain_name != "" && var.ssl_certificate_arn == "" ? 1 : 0
+  source = "./modules/acm"
+
+  project_name = var.project_name
+  environment  = var.environment
+  domain_name  = var.domain_name
+}
+
 # ALB Module
 module "alb" {
   source = "./modules/alb"
@@ -131,7 +141,7 @@ module "alb" {
   vpc_id              = module.vpc.vpc_id
   public_subnet_ids   = module.vpc.public_subnet_ids
   security_group_ids  = [module.security_groups.alb_sg_id]
-  ssl_certificate_arn = var.ssl_certificate_arn
+  ssl_certificate_arn = var.ssl_certificate_arn != "" ? var.ssl_certificate_arn : (var.domain_name != "" ? module.acm[0].certificate_arn : "")
   enable_https        = var.enable_https
 }
 

@@ -150,8 +150,14 @@ variable "openai_api_key" {
 }
 
 # SSL/TLS Configuration
+variable "domain_name" {
+  description = "Custom domain name for the application (e.g., api.example.com)"
+  type        = string
+  default     = ""
+}
+
 variable "ssl_certificate_arn" {
-  description = "ARN of SSL certificate from ACM (leave empty to use HTTP only)"
+  description = "ARN of SSL certificate from ACM (leave empty to create new certificate with domain_name)"
   type        = string
   default     = ""
 }

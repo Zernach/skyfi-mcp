@@ -60,6 +60,28 @@ output "public_subnet_ids" {
   value       = module.vpc.public_subnet_ids
 }
 
+# ACM Certificate Outputs (conditional)
+output "acm_certificate_arn" {
+  description = "ARN of the ACM certificate (if created)"
+  value       = var.domain_name != "" && var.ssl_certificate_arn == "" ? module.acm[0].certificate_arn : var.ssl_certificate_arn
+}
+
+output "acm_certificate_status" {
+  description = "Status of the ACM certificate (if created)"
+  value       = var.domain_name != "" && var.ssl_certificate_arn == "" ? module.acm[0].certificate_status : "N/A - Using existing certificate or HTTP only"
+}
+
+output "acm_dns_validation_records" {
+  description = "DNS validation records for ACM certificate - ADD THESE TO YOUR DNS PROVIDER"
+  value = var.domain_name != "" && var.ssl_certificate_arn == "" ? [
+    for dvo in module.acm[0].domain_validation_options : {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      value  = dvo.resource_record_value
+    }
+  ] : []
+}
+
 output "deployment_instructions" {
   description = "Instructions for deploying the application"
   value       = <<-EOT
@@ -81,11 +103,15 @@ output "deployment_instructions" {
     
     3. Access your application:
        
-       http://${module.alb.alb_dns_name}/health
+       http${var.enable_https ? "s" : ""}://${var.domain_name != "" ? var.domain_name : module.alb.alb_dns_name}/health
     
     4. Monitor logs:
        
        aws logs tail /ecs/${var.project_name}-${var.environment} --follow --region ${var.aws_region}
+    
+    ${var.domain_name != "" && var.ssl_certificate_arn == "" ? "5. IMPORTANT: Add the DNS validation records shown in 'acm_dns_validation_records' output to your DNS provider to validate the certificate!" : ""}
+    
+    ${var.domain_name != "" ? "6. Add a CNAME record in your DNS: ${var.domain_name} -> ${module.alb.alb_dns_name}" : ""}
     
     ====================================
   EOT

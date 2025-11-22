@@ -36,3 +36,15 @@ docker-compose.override.yml
 
 # TypeScript
 *.tsbuildinfo
+
+# Terraform plan files
+*.tfplan
+tfplan.*
+
+# Environment-specific documentation
+DNS_RECORDS.txt
+*_RECORDS.txt
+
+# Terraform logs
+*.log
+apply*.log

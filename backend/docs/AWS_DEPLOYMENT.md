@@ -541,38 +541,106 @@ aws application-autoscaling put-scaling-policy \
 }
 ```
 
-### 10. Configure SSL/TLS (Production)
+### 10. Configure SSL/TLS with Custom Domain (Terraform)
+
+The infrastructure now includes automated SSL/TLS certificate management using AWS Certificate Manager (ACM).
+
+#### 10.1 Update terraform.tfvars
+
+```bash
+# Edit terraform.tfvars and set:
+enable_https = true
+domain_name  = "api.yourdomain.com"
+```
+
+#### 10.2 Apply Terraform Configuration
+
+```bash
+cd terraform
+terraform plan
+terraform apply
+```
+
+#### 10.3 Add DNS Validation Record
+
+After applying the Terraform configuration, you'll see an output with DNS validation records:
+
+```bash
+terraform output acm_dns_validation_records
+```
+
+This will display something like:
+
+```json
+[
+  {
+    "name": "_abc123def456.api.yourdomain.com",
+    "type": "CNAME",
+    "value": "_xyz789abc123.acm-validations.aws."
+  }
+]
+```
+
+**Add this CNAME record to your DNS provider** to validate certificate ownership.
+
+#### 10.4 Add CNAME Record for Custom Domain
+
+Once the certificate is validated (check status with `terraform output acm_certificate_status`), add a CNAME record pointing your custom domain to the ALB:
+
+```bash
+# Get ALB DNS name
+terraform output alb_dns_name
+```
+
+Add this CNAME record to your DNS provider:
+
+```
+Type: CNAME
+Name: api.yourdomain.com
+Value: <alb-dns-name> (e.g., skyfi-mcp-prod-v2-alb-680967047.us-east-1.elb.amazonaws.com)
+TTL: 300
+```
+
+#### 10.5 Verify HTTPS Configuration
+
+After DNS propagation (usually 5-15 minutes):
+
+```bash
+curl https://api.yourdomain.com/health
+```
+
+### 10.6 Manual SSL/TLS Configuration (CLI Alternative)
+
+If not using Terraform's ACM module, you can manually configure SSL/TLS:
 
 ```bash
 # Request SSL certificate via ACM
 aws acm request-certificate \
-  --domain-name skyfi-mcp.yourdomain.com \
-  --validation-method DNS \
-  --subject-alternative-names "*.skyfi-mcp.yourdomain.com"
+  --domain-name api.yourdomain.com \
+  --validation-method DNS
 
-# Add DNS validation records to Route 53
-# (Follow ACM console instructions)
-
-# Wait for certificate validation
 export CERT_ARN=<certificate-arn>
 
-# Create HTTPS listener
-aws elbv2 create-listener \
-  --load-balancer-arn $ALB_ARN \
-  --protocol HTTPS \
-  --port 443 \
-  --certificates CertificateArn=$CERT_ARN \
-  --default-actions Type=forward,TargetGroupArn=$TG_ARN
+# Get validation records
+aws acm describe-certificate --certificate-arn $CERT_ARN
 
-# Modify HTTP listener to redirect to HTTPS
-aws elbv2 modify-listener \
-  --listener-arn <http-listener-arn> \
-  --default-actions Type=redirect,RedirectConfig="{
-    Protocol=HTTPS,
-    Port=443,
-    StatusCode=HTTP_301
-  }"
+# Add DNS validation records to your DNS provider
+# (Follow ACM console instructions or CLI output)
+
+# Wait for certificate validation (can take 5-30 minutes)
+aws acm wait certificate-validated --certificate-arn $CERT_ARN
+
+# Update terraform.tfvars to use existing certificate
+ssl_certificate_arn = "<certificate-arn>"
+enable_https = true
+
+# Apply Terraform
+terraform apply
 ```
+
+The ALB will automatically:
+- Create an HTTPS listener on port 443 with your certificate
+- Redirect all HTTP traffic (port 80) to HTTPS (port 443)
 
 ## Monitoring and Logs
 
