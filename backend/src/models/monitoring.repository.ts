@@ -325,5 +325,84 @@ export async function deactivateWebhooksForAoi(
   return result.rows.map(mapWebhookRow);
 }
 
+export async function updateWebhookLastSent(webhookId: string): Promise<void> {
+  await query(
+    `
+      UPDATE webhooks
+      SET last_sent_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+    `,
+    [webhookId]
+  );
+}
 
+export async function getWebhookById(webhookId: string): Promise<WebhookRecord | null> {
+  const result = await query(
+    `
+      SELECT *
+      FROM webhooks
+      WHERE id = $1
+    `,
+    [webhookId]
+  );
 
+  return result.rows.length > 0 ? mapWebhookRow(result.rows[0]) : null;
+}
+
+export interface NotificationRecord {
+  id: string;
+  webhookId: string;
+  status: string;
+  payload: Record<string, any>;
+  response: Record<string, any> | null;
+  createdAt: string;
+}
+
+const mapNotificationRow = (row: any): NotificationRecord => ({
+  id: row.id,
+  webhookId: row.webhook_id,
+  status: row.status,
+  payload: row.payload ?? {},
+  response: row.response ?? null,
+  createdAt: row.created_at,
+});
+
+export interface CreateNotificationRecordInput {
+  webhookId: string;
+  status: string;
+  payload: Record<string, any>;
+  response: Record<string, any> | null;
+}
+
+export async function createNotificationRecord(
+  input: CreateNotificationRecordInput
+): Promise<NotificationRecord> {
+  const result = await query(
+    `
+      INSERT INTO notifications (webhook_id, status, payload, response)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `,
+    [input.webhookId, input.status, JSON.stringify(input.payload), input.response ? JSON.stringify(input.response) : null]
+  );
+
+  return mapNotificationRow(result.rows[0]);
+}
+
+export async function listNotifications(
+  webhookId: string,
+  limit = 50
+): Promise<NotificationRecord[]> {
+  const result = await query(
+    `
+      SELECT *
+      FROM notifications
+      WHERE webhook_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2
+    `,
+    [webhookId, limit]
+  );
+
+  return result.rows.map(mapNotificationRow);
+}

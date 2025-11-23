@@ -37,6 +37,10 @@ export class SSEConnection {
    */
   send(event: MCPEvent): boolean {
     if (!this.isConnected) {
+      logger.warn(`Cannot send SSE event - not connected`, {
+        clientId: this.clientId,
+        event: event.event,
+      });
       return false;
     }
 
@@ -50,10 +54,25 @@ export class SSEConnection {
       message += `event: ${event.event}\n`;
       message += `data: ${JSON.stringify(event.data)}\n\n`;
 
+      logger.info(`Sending SSE event`, {
+        clientId: this.clientId,
+        event: event.event,
+        eventId: event.id,
+        hasData: !!event.data,
+      });
+      
       this.res.write(message);
+      logger.info(`SSE event sent successfully`, {
+        clientId: this.clientId,
+        event: event.event,
+      });
       return true;
     } catch (error) {
-      logger.error(`Error sending SSE event: ${this.clientId}`, error);
+      logger.error(`Error sending SSE event: ${this.clientId}`, {
+        error: error instanceof Error ? error.message : String(error),
+        event: event.event,
+        clientId: this.clientId,
+      });
       return false;
     }
   }
@@ -109,10 +128,22 @@ class SSEManager {
    */
   sendToClient(clientId: string, event: MCPEvent): boolean {
     const connection = this.connections.get(clientId);
-    if (connection && connection.isActive()) {
-      return connection.send(event);
+    if (!connection) {
+      logger.warn(`No SSE connection found for client`, {
+        clientId,
+        event: event.event,
+        activeConnections: Array.from(this.connections.keys()),
+      });
+      return false;
     }
-    return false;
+    if (!connection.isActive()) {
+      logger.warn(`SSE connection not active for client`, {
+        clientId,
+        event: event.event,
+      });
+      return false;
+    }
+    return connection.send(event);
   }
 
   /**

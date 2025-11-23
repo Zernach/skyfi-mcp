@@ -99,6 +99,174 @@ const FALLBACK_SCENES: FallbackScene[] = [
       },
     ],
   },
+  {
+    id: 'london-core',
+    label: 'London, UK',
+    centroid: { lat: 51.5074, lon: -0.1278 },
+    radiusKm: 80,
+    results: [
+      {
+        id: 'LON-PLN-20240201',
+        satellite: 'Pléiades Neo 3',
+        captureDate: '2024-02-01T11:30:22Z',
+        cloudCover: 15,
+        resolution: 0.3,
+        thumbnail: 'https://example.skyfi.test/thumbnails/LON-PLN-20240201.jpg',
+        bbox: [-0.2416, 51.4382, 0.0077, 51.5723],
+        price: 1050.0,
+      },
+      {
+        id: 'LON-S2B-20231115',
+        satellite: 'Sentinel-2B',
+        captureDate: '2023-11-15T11:15:33Z',
+        cloudCover: 28,
+        resolution: 10,
+        thumbnail: 'https://example.skyfi.test/thumbnails/LON-S2B-20231115.jpg',
+        bbox: [-0.3897, 51.3621, 0.1545, 51.6464],
+        price: 0,
+      },
+    ],
+  },
+  {
+    id: 'tokyo-core',
+    label: 'Tokyo, Japan',
+    centroid: { lat: 35.6762, lon: 139.6503 },
+    radiusKm: 85,
+    results: [
+      {
+        id: 'TYO-WV03-20240105',
+        satellite: 'WorldView-3',
+        captureDate: '2024-01-05T02:15:45Z',
+        cloudCover: 6,
+        resolution: 0.31,
+        thumbnail: 'https://example.skyfi.test/thumbnails/TYO-WV03-20240105.jpg',
+        bbox: [139.5503, 35.5762, 139.7503, 35.7762],
+        price: 925.0,
+      },
+      {
+        id: 'TYO-S2A-20231201',
+        satellite: 'Sentinel-2A',
+        captureDate: '2023-12-01T02:45:12Z',
+        cloudCover: 18,
+        resolution: 10,
+        thumbnail: 'https://example.skyfi.test/thumbnails/TYO-S2A-20231201.jpg',
+        bbox: [139.4503, 35.4762, 139.8503, 35.8762],
+        price: 0,
+      },
+    ],
+  },
+  {
+    id: 'san-francisco-core',
+    label: 'San Francisco, USA',
+    centroid: { lat: 37.7749, lon: -122.4194 },
+    radiusKm: 70,
+    results: [
+      {
+        id: 'SF-WV02-20240110',
+        satellite: 'WorldView-2',
+        captureDate: '2024-01-10T18:30:15Z',
+        cloudCover: 3,
+        resolution: 0.46,
+        thumbnail: 'https://example.skyfi.test/thumbnails/SF-WV02-20240110.jpg',
+        bbox: [-122.5194, 37.6749, -122.3194, 37.8749],
+        price: 880.0,
+      },
+      {
+        id: 'SF-LANDSAT9-20231120',
+        satellite: 'Landsat 9',
+        captureDate: '2023-11-20T18:15:45Z',
+        cloudCover: 8,
+        resolution: 15,
+        thumbnail: 'https://example.skyfi.test/thumbnails/SF-LANDSAT9-20231120.jpg',
+        bbox: [-122.6194, 37.5749, -122.2194, 37.9749],
+        price: 0,
+      },
+    ],
+  },
+  {
+    id: 'sydney-core',
+    label: 'Sydney, Australia',
+    centroid: { lat: -33.8688, lon: 151.2093 },
+    radiusKm: 75,
+    results: [
+      {
+        id: 'SYD-PLN-20240115',
+        satellite: 'Pléiades Neo 4',
+        captureDate: '2024-01-15T22:45:30Z',
+        cloudCover: 5,
+        resolution: 0.3,
+        thumbnail: 'https://example.skyfi.test/thumbnails/SYD-PLN-20240115.jpg',
+        bbox: [151.1093, -33.9688, 151.3093, -33.7688],
+        price: 1075.0,
+      },
+      {
+        id: 'SYD-S2B-20231210',
+        satellite: 'Sentinel-2B',
+        captureDate: '2023-12-10T22:30:12Z',
+        cloudCover: 12,
+        resolution: 10,
+        thumbnail: 'https://example.skyfi.test/thumbnails/SYD-S2B-20231210.jpg',
+        bbox: [151.0093, -34.0688, 151.4093, -33.6688],
+        price: 0,
+      },
+    ],
+  },
+  {
+    id: 'dubai-core',
+    label: 'Dubai, UAE',
+    centroid: { lat: 25.2048, lon: 55.2708 },
+    radiusKm: 65,
+    results: [
+      {
+        id: 'DXB-WV03-20240120',
+        satellite: 'WorldView-3',
+        captureDate: '2024-01-20T07:15:40Z',
+        cloudCover: 2,
+        resolution: 0.31,
+        thumbnail: 'https://example.skyfi.test/thumbnails/DXB-WV03-20240120.jpg',
+        bbox: [55.1708, 25.1048, 55.3708, 25.3048],
+        price: 950.0,
+      },
+      {
+        id: 'DXB-S2A-20231205',
+        satellite: 'Sentinel-2A',
+        captureDate: '2023-12-05T07:00:20Z',
+        cloudCover: 4,
+        resolution: 10,
+        thumbnail: 'https://example.skyfi.test/thumbnails/DXB-S2A-20231205.jpg',
+        bbox: [55.0708, 25.0048, 55.4708, 25.4048],
+        price: 0,
+      },
+    ],
+  },
+  {
+    id: 'singapore-core',
+    label: 'Singapore',
+    centroid: { lat: 1.3521, lon: 103.8198 },
+    radiusKm: 55,
+    results: [
+      {
+        id: 'SIN-PLN-20240108',
+        satellite: 'Pléiades Neo 3',
+        captureDate: '2024-01-08T03:20:15Z',
+        cloudCover: 8,
+        resolution: 0.3,
+        thumbnail: 'https://example.skyfi.test/thumbnails/SIN-PLN-20240108.jpg',
+        bbox: [103.7198, 1.2521, 103.9198, 1.4521],
+        price: 1100.0,
+      },
+      {
+        id: 'SIN-S2B-20231125',
+        satellite: 'Sentinel-2B',
+        captureDate: '2023-11-25T03:10:45Z',
+        cloudCover: 22,
+        resolution: 10,
+        thumbnail: 'https://example.skyfi.test/thumbnails/SIN-S2B-20231125.jpg',
+        bbox: [103.6198, 1.1521, 104.0198, 1.5521],
+        price: 0,
+      },
+    ],
+  },
 ];
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -110,8 +278,8 @@ const haversineDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: num
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(lat1 * DEG_TO_RAD) *
-      Math.cos(lat2 * DEG_TO_RAD) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos(lat2 * DEG_TO_RAD) *
+    Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return EARTH_RADIUS_KM * c;
 };

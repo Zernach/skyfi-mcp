@@ -9,14 +9,9 @@ import {
   type SessionConfig,
 } from '../../lib/realtime/RealtimeClient';
 import { instructions } from '../../constants/prompts';
-import type { BoundingBox } from '../../types/geospatial';
-import { lookupBoundingBoxForPlace } from '../../utils/geocoding';
 import type { IMapCoords, MapMarkerDetails } from '../mbox/MBox';
 import { COLORS } from '../../constants/colors';
-import {
-  OPEN_METEO_ARCHIVE_URL,
-  OPEN_METEO_FORECAST_URL,
-} from '../../constants/links';
+import { TOOL_DEFINITIONS, executeTool, type ToolExecutionContext } from '../../lib/tools/registry';
 import './RealtimeVoiceModal.scss';
 
 const CONVERSATION_STARTERS = [
@@ -26,7 +21,6 @@ const CONVERSATION_STARTERS = [
 ];
 
 const PROD_BASE_URL = 'https://api.landscapesupply.app';
-const DEV_BASE_URL = 'http://localhost:3000';
 const VOICE_RELAY_ENDPOINT = `${PROD_BASE_URL}/api/skyfi/relay`;
 const DEFAULT_REALTIME_MODEL = 'gpt-realtime-2025-08-28';
 const RELAY_SESSION_EXPIRY_BUFFER_MS = 5_000;
@@ -124,6 +118,7 @@ export function RealtimeVoiceModal({
     null
   );
   const [hasPressedStart, setHasPressedStart] = useState(false);
+  const [showStarters, setShowStarters] = useState(true);
   const voiceStatusRef = useRef<VoiceSessionStatus>('idle');
   const clientRef = useRef<RealtimeClient | null>(null);
   const recorderRef = useRef<WavRecorder | null>(null);
@@ -285,296 +280,20 @@ export function RealtimeVoiceModal({
     (client: RealtimeClient) => {
       client.clearTools();
 
-      // UNIFIED FAST NAVIGATION TOOL - combines geocoding + map navigation
-      client.addTool(
-        {
-          name: 'fly_to_place',
-          description:
-            'FASTEST way to navigate the map to a location. Instantly geocodes place name and flies map there. Use this for all navigation requests.',
-          parameters: {
-            type: 'object',
-            required: ['place'],
-            properties: {
-              place: {
-                type: 'string',
-                description:
-                  'City, region, or country name (e.g., "Tokyo", "California", "Brazil").',
-              },
-            },
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const place =
-            typeof args?.place === 'string' ? args.place.trim() : '';
-          if (!place) {
-            throw new Error(
-              'The "place" parameter must be a non-empty string.'
-            );
-          }
+      // Create shared execution context for all tools
+      const toolContext: ToolExecutionContext = {
+        onMarkerUpdate,
+        onMapPositionChange,
+      };
 
-          // Geocode and navigate in one operation
-          const result = await lookupBoundingBoxForPlace(place);
-          const center = result.center;
-
-          if (center) {
-            // Immediately update map position
-            onMapPositionChange({ lat: center.lat, lng: center.lon });
-            onMarkerUpdate({
-              lat: center.lat,
-              lng: center.lon,
-              location: result.displayName,
-            });
-          }
-
-          return {
-            success: true,
-            location: result.displayName,
-            latitude: center?.lat ?? null,
-            longitude: center?.lon ?? null,
-            bounding_box: result.boundingBox,
-          };
-        }
-      );
-
-      client.addTool(
-        {
-          name: 'lookup_bounding_box',
-          description:
-            'Resolves a place name to a geographic bounding box using OpenStreetMap Nominatim. For navigation, use fly_to_place instead.',
-          parameters: {
-            type: 'object',
-            required: ['place'],
-            properties: {
-              place: {
-                type: 'string',
-                description:
-                  'City, region, or country name to geocode (e.g., "Lisbon", "Peru").',
-              },
-            },
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const place =
-            typeof args?.place === 'string' ? args.place.trim() : '';
-          if (!place) {
-            throw new Error(
-              'The "place" parameter must be a non-empty string.'
-            );
-          }
-          const result = await lookupBoundingBoxForPlace(place);
-          return {
-            bounding_box: result.boundingBox,
-            display_name: result.displayName,
-            center: result.center,
-            source: result.source,
-          };
-        }
-      );
-
-
-      client.addTool(
-        {
-          name: 'get_weather',
-          description:
-            'Retrieves current temperature and wind speed for the given coordinates. Provide a descriptive label for the location.',
-          parameters: {
-            type: 'object',
-            properties: {
-              lat: { type: 'number', description: 'Latitude' },
-              lng: { type: 'number', description: 'Longitude' },
-              location: {
-                type: 'string',
-                description: 'Label for the location',
-              },
-            },
-            required: ['lat', 'lng', 'location'],
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const latitude = ensureNumber(args?.lat, 'lat');
-          const longitude = ensureNumber(args?.lng, 'lng');
-          const location = args?.location;
-          const label =
-            typeof location === 'string' && location.trim().length
-              ? location.trim()
-              : 'Selected location';
-
-          onMarkerUpdate({
-            lat: latitude,
-            lng: longitude,
-            location: label,
-          });
-          onMapPositionChange({ lat: latitude, lng: longitude });
-
-          const url = `${OPEN_METEO_FORECAST_URL}?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m`;
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(
-              `Weather request failed with status ${response.status}.`
-            );
-          }
-          const json = await response.json();
-
-          const temperatureReading =
-            typeof json?.current?.temperature_2m === 'number' &&
-              typeof json?.current_units?.temperature_2m === 'string'
-              ? {
-                value: json.current.temperature_2m,
-                units: json.current_units.temperature_2m,
-              }
-              : null;
-
-          const windReading =
-            typeof json?.current?.wind_speed_10m === 'number' &&
-              typeof json?.current_units?.wind_speed_10m === 'string'
-              ? {
-                value: json.current.wind_speed_10m,
-                units: json.current_units.wind_speed_10m,
-              }
-              : null;
-
-          onMarkerUpdate({
-            lat: latitude,
-            lng: longitude,
-            location: label,
-            temperature: temperatureReading,
-            wind_speed: windReading,
-          });
-
-          return {
-            latitude,
-            longitude,
-            location: label,
-            temperature: temperatureReading,
-            wind_speed: windReading,
-          };
-        }
-      );
-
-      client.addTool(
-        {
-          name: 'get_last_rain',
-          description:
-            'Returns the number of days since measurable rain occurred at the provided coordinates. Responds with -1 when it has been more than 10 days.',
-          parameters: {
-            type: 'object',
-            properties: {
-              lat: { type: 'number', description: 'Latitude' },
-              lng: { type: 'number', description: 'Longitude' },
-            },
-            required: ['lat', 'lng'],
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const latitude = ensureNumber(args?.lat, 'lat');
-          const longitude = ensureNumber(args?.lng, 'lng');
-
-          onMapPositionChange({ lat: latitude, lng: longitude });
-
-          const now = new Date();
-          const endDate = now.toISOString().split('T')[0];
-          const startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split('T')[0];
-
-          const url = `${OPEN_METEO_ARCHIVE_URL}?latitude=${latitude}&longitude=${longitude}&start_date=${startDate}&end_date=${endDate}&daily=precipitation_sum`;
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(
-              `Rainfall request failed with status ${response.status}.`
-            );
-          }
-          const json = await response.json();
-
-          const precipitation: number[] = Array.isArray(
-            json?.daily?.precipitation_sum
-          )
-            ? json.daily.precipitation_sum.map((value: unknown) =>
-              Number(value)
-            )
-            : [];
-          const timestamps: string[] = Array.isArray(json?.daily?.time)
-            ? json.daily.time
-            : [];
-
-          let daysSinceRain: number | null = null;
-          const today = new Date();
-          for (let index = precipitation.length - 1; index >= 0; index -= 1) {
-            const amount = precipitation[index];
-            if (Number.isFinite(amount) && amount > 0) {
-              const dateString = timestamps[index];
-              if (dateString) {
-                const rainDate = new Date(dateString);
-                const diffMs = today.getTime() - rainDate.getTime();
-                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                daysSinceRain = diffDays > 10 ? -1 : diffDays;
-              }
-              break;
-            }
-          }
-
-          if (daysSinceRain === null) {
-            daysSinceRain = -1;
-          }
-
-          onMarkerUpdate({
-            lat: latitude,
-            lng: longitude,
-            daysSinceRain,
-          });
-
-          return {
-            latitude,
-            longitude,
-            days_since_rain: daysSinceRain,
-          };
-        }
-      );
-
-      client.addTool(
-        {
-          name: 'map_fly_to',
-          description: 'Centers the geospatial map on the provided coordinates.',
-          parameters: {
-            type: 'object',
-            properties: {
-              lat: { type: 'number', description: 'Latitude' },
-              lng: { type: 'number', description: 'Longitude' },
-              location: {
-                type: 'string',
-                description: 'Optional label for the map marker',
-              },
-            },
-            required: ['lat', 'lng'],
-            additionalProperties: false,
-          },
-        },
-        async (args: Record<string, any>) => {
-          const latitude = ensureNumber(args?.lat, 'lat');
-          const longitude = ensureNumber(args?.lng, 'lng');
-          const location: string | undefined =
-            typeof args?.location === 'string' ? args.location : undefined;
-          onMapPositionChange({ lat: latitude, lng: longitude });
-          onMarkerUpdate({
-            lat: latitude,
-            lng: longitude,
-            location:
-              typeof location === 'string' && location.trim().length
-                ? location.trim()
-                : undefined,
-          });
-          return { latitude, longitude, location: location ?? null };
-        }
-      );
+      // Register all tools from the unified registry
+      TOOL_DEFINITIONS.forEach((toolDef) => {
+        client.addTool(toolDef, async (args: Record<string, any>) => {
+          return executeTool(toolDef.name, args, toolContext);
+        });
+      });
     },
-    [
-      onMarkerUpdate,
-      onMapPositionChange,
-    ]
+    [onMarkerUpdate, onMapPositionChange]
   );
 
   const fetchRelaySession = useCallback(
@@ -971,15 +690,25 @@ export function RealtimeVoiceModal({
           <span>{voiceError}</span>
         </div>
       )}
-      {isLargeScreen && (
+      {isLargeScreen && showStarters && (
         <div
           className="realtime-voice-modal__starters"
           aria-live="polite"
           data-testid="conversation-starters"
         >
-          <span className="realtime-voice-modal__starters-title">
-            Try saying...
-          </span>
+          <div className="realtime-voice-modal__starters-header">
+            <span className="realtime-voice-modal__starters-title">
+              Try saying...
+            </span>
+            <button
+              className="realtime-voice-modal__starters-close"
+              onClick={() => setShowStarters(false)}
+              aria-label="Close suggestions"
+              type="button"
+            >
+              <X size={14} />
+            </button>
+          </div>
           <ul className="realtime-voice-modal__starters-list">
             {CONVERSATION_STARTERS.map((starter) => (
               <p key={starter}>{starter}</p>
@@ -1002,19 +731,3 @@ export function RealtimeVoiceModal({
   );
 }
 
-function ensureNumber(value: unknown, label: string): number {
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
-    throw new Error(`Invalid ${label} value: ${value}`);
-  }
-  return numeric;
-}
-
-function prettyPrintMaybeJson(input: string): string {
-  try {
-    const parsed = JSON.parse(input);
-    return JSON.stringify(parsed, null, 2);
-  } catch (_error) {
-    return input;
-  }
-}

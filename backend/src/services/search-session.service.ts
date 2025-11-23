@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import logger from '../utils/logger';
 import { skyfiClient } from '../integrations/skyfi/client';
 import { toGeoJsonPolygon } from '../utils/geojson';
+import { sessionHistoryManager } from './session-history-manager.service';
 
 export interface SearchCriteria {
   location?: Record<string, any>;
@@ -37,6 +38,17 @@ export interface SearchSessionResponse {
     updatedAt: string;
     storedPages: number;
     storedResults: number;
+  };
+  recommendations?: Array<{
+    type: string;
+    title: string;
+    description: string;
+    action: any;
+    confidence: number;
+  }>;
+  analytics?: {
+    totalSearches: number;
+    searchSuccessRate: number;
   };
 }
 
@@ -103,6 +115,57 @@ function stableStringify(obj: Record<string, any>): string {
 export class SearchSessionService {
   private sessions = new Map<string, SearchSession>();
   private conversationSessions = new Map<string, Set<string>>();
+
+  /**
+   * Get session summary for a conversation (useful for showing search history)
+   */
+  getConversationSessions(conversationId: string): Array<{
+    sessionId: string;
+    createdAt: string;
+    updatedAt: string;
+    summary: string;
+    resultCount: number;
+    criteria: SearchCriteria;
+  }> {
+    const sessionIds = this.conversationSessions.get(conversationId);
+    if (!sessionIds) {
+      return [];
+    }
+
+    return Array.from(sessionIds)
+      .map((id) => this.sessions.get(id))
+      .filter((s): s is SearchSession => s !== undefined)
+      .map((session) => ({
+        sessionId: session.sessionId,
+        createdAt: new Date(session.createdAt).toISOString(),
+        updatedAt: new Date(session.updatedAt).toISOString(),
+        summary: this.describeCriteria(session.criteria),
+        resultCount: session.pages.reduce((sum, page) => sum + page.count, 0),
+        criteria: session.criteria,
+      }))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  /**
+   * Get detailed session information
+   */
+  getSession(sessionId: string): SearchSession | undefined {
+    return this.sessions.get(sessionId);
+  }
+
+  /**
+   * Get all results from a session (across all pages)
+   */
+  getAllSessionResults(sessionId: string): any[] {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return [];
+    }
+
+    return session.pages
+      .sort((a, b) => a.offset - b.offset)
+      .flatMap((page) => page.results);
+  }
 
   async runArchiveSearch(
     conversationId: string,
@@ -220,11 +283,30 @@ export class SearchSessionService {
 
     this.persistSession(session);
 
+    // Track search for pattern analysis
+    sessionHistoryManager.trackSearch(
+      conversationId,
+      sanitizedCriteria,
+      results.length
+    );
+
     const history = control.includeHistory
       ? [...session.history]
       : undefined;
 
     const summary = this.buildSummary(page, session.total);
+
+    // Get recommendations if no/low results
+    let recommendations;
+    if (results.length === 0 || (results.length < 5 && !hasMore)) {
+      recommendations = sessionHistoryManager.getRecommendations(
+        conversationId,
+        sanitizedCriteria
+      );
+    }
+
+    // Get analytics summary
+    const analytics = sessionHistoryManager.getAnalytics(conversationId);
 
     return {
       success: true,
@@ -254,6 +336,11 @@ export class SearchSessionService {
           0
         ),
       },
+      recommendations: recommendations && recommendations.length > 0 ? recommendations : undefined,
+      analytics: analytics.totalSearches > 0 ? {
+        totalSearches: analytics.totalSearches,
+        searchSuccessRate: analytics.searchSuccessRate,
+      } : undefined,
     };
   }
 

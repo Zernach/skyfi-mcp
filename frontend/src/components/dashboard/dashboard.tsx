@@ -124,7 +124,10 @@ export function Dashboard() {
               onResetContext={resetRealtimeContext}
               isLargeScreen={isLargeScreen}
             />
-            <ChatWidget />
+            <ChatWidget 
+              onMarkerUpdate={updateMarkerInfo}
+              onMapPositionChange={setMapPosition}
+            />
           </div>
         </div>
         <ConsoleFooter

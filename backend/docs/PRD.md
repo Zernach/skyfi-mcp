@@ -386,25 +386,55 @@ Acceptance Criteria:
 
 ---
 
-#### FR-003: Order Feasibility Checking
+#### FR-003: Order Feasibility Checking ✅ IMPLEMENTED
 **Priority:** P0  
 **Description:** Check and report order feasibility before placement to prevent failed orders.
 
+**Status:** ✅ **COMPLETED** (November 23, 2025)
+
 **Requirements:**
-- Validate data availability for requested location
-- Check coverage area boundaries
-- Report estimated delivery timeline
-- Identify potential issues (cloud cover, resolution limits)
-- Suggest alternatives for infeasible requests
-- Return structured feasibility report
+- ✅ Validate data availability for requested location
+- ✅ Check coverage area boundaries
+- ✅ Report estimated delivery timeline
+- ✅ Identify potential issues (cloud cover, resolution limits)
+- ✅ Suggest alternatives for infeasible requests
+- ✅ Return structured feasibility report
+
+**Implementation:**
+- **`FeasibilityService`**: Core feasibility evaluation engine
+- **`confirm_order_with_pricing`**: Mandatory pre-order validation tool
+- **`createSatelliteOrder`**: Guards against invalid archive orders
+- **`requestSatelliteTasking`**: Validates location, dates, and coverage
+- **AI Prompts**: Enforces feasibility-first workflow
+- **Automatic Validation**: Built-in checks prevent infeasible orders
 
 **SkyFi API Integration:**
-- **Archive Search:** Query existing imagery to check availability
-- **Tasking Feasibility:** Check if new tasking is possible for location
-- **Satellite Coverage:** Verify location is within satellite coverage areas
-- **Weather Data:** Check cloud cover forecasts for tasking requests
-- **Alternative Suggestions:** Search nearby available imagery or different satellites
-- **Implementation:** Combine archive search results + tasking availability checks
+- ✅ **Archive Search:** Query existing imagery to check availability
+- ✅ **Tasking Feasibility:** Check if new tasking is possible for location
+- ✅ **Satellite Coverage:** Verify location is within satellite coverage areas
+- ✅ **Weather Data:** Check cloud cover forecasts for tasking requests
+- ✅ **Alternative Suggestions:** Search nearby available imagery or different satellites
+- ✅ **Implementation:** Combine archive search results + tasking availability checks
+
+**Feasibility Report Includes:**
+```typescript
+{
+  feasible: boolean,
+  confidence: 'high' | 'medium' | 'low',
+  pricing: { estimatedPrice, currency, breakdown, turnaroundDays },
+  coverage: { availableScenes, bestCloudCover, notes },
+  weather: { riskLevel, averageCloudCover, notes },
+  risks: string[],
+  alternatives: string[],
+  recommendations: string[],
+  readyToOrder: boolean
+}
+```
+
+**Files:**
+- `backend/src/services/feasibility.service.ts`
+- `backend/src/services/tool-executor.ts`
+- `frontend/src/constants/prompts.ts`
 
 **Dependencies:** FR-001
 
@@ -460,29 +490,45 @@ Acceptance Criteria:
 
 ---
 
-#### FR-006: AOI Monitoring & Webhook Notifications
+#### FR-006: AOI Monitoring & Webhook Notifications ✅ IMPLEMENTED
 **Priority:** P0  
+**Status:** ✅ **COMPLETE** (November 23, 2025)  
 **Description:** Facilitate Area of Interest (AOI) monitoring setup with webhook notifications.
 
 **Requirements:**
-- Define AOIs by coordinates or GeoJSON
-- Configure notification criteria
-- Webhook URL configuration
-- Webhook authentication support
-- Notification payload includes data preview
-- Manage multiple AOIs per user
-- Test webhook functionality
+- ✅ Define AOIs by coordinates or GeoJSON
+- ✅ Configure notification criteria
+- ✅ Webhook URL configuration
+- ✅ Webhook authentication support (HMAC-SHA256)
+- ✅ Notification payload includes data preview
+- ✅ Manage multiple AOIs per user
+- ✅ Test webhook functionality
 
 **SkyFi API Integration:**
-- **AOI Creation:** POST AOI definition (GeoJSON polygon) to monitoring endpoint
-- **Recurring Orders:** Configure automatic recurring imagery captures
-- **Notification Setup:** Register webhook URLs for status updates
-- **Criteria Configuration:** Set triggers (new data available, order complete, quality thresholds)
-- **Webhook Payload:** Includes order ID, status, download URLs, metadata, preview links
-- **Cloud Delivery:** Automatic delivery to AWS S3 or Google Cloud Storage
-- **Webhook Security:** Support for HMAC signatures or bearer token authentication
-- **Testing:** Ping/test webhook endpoint before activation
-- **Management:** CRUD operations for AOIs (create, read, update, delete)
+- ✅ **AOI Creation:** POST AOI definition (GeoJSON polygon) to monitoring endpoint
+- ✅ **Recurring Orders:** Configure automatic recurring imagery captures
+- ✅ **Notification Setup:** Register webhook URLs for status updates
+- ✅ **Criteria Configuration:** Set triggers (new data available, order complete, quality thresholds)
+- ✅ **Webhook Payload:** Includes order ID, status, download URLs, metadata, preview links
+- ✅ **Cloud Delivery:** Automatic delivery to AWS S3 or Google Cloud Storage
+- ✅ **Webhook Security:** HMAC-SHA256 signature verification implemented
+- ✅ **Testing:** Test webhook endpoint available (`/api/v1/webhooks/test/:webhookId`)
+- ✅ **Management:** Full CRUD operations for AOIs and webhooks
+
+**Implementation:**
+- **Webhook Handler Service** (`webhook-handler.service.ts`) - Event processing and routing
+- **Webhook Routes** (`webhook.routes.ts`) - API endpoints for receiving webhooks
+- **Database Models** - Webhook and notification persistence
+- **Documentation** - Comprehensive setup guide (6,000+ words)
+- **Examples** - Working example server implementation
+- **Security** - HMAC signature verification, HTTPS enforcement
+
+**Files:**
+- `backend/src/services/webhook-handler.service.ts`
+- `backend/src/api/webhook.routes.ts`
+- `backend/src/models/monitoring.repository.ts` (extended)
+- `backend/docs/WEBHOOK_SETUP_GUIDE.md`
+- `backend/examples/webhook-example.ts`
 
 **Dependencies:** FR-001, FR-008
 

@@ -72,11 +72,16 @@ export interface FeasibilityReport {
     coverage: CoverageDetails;
     weather: WeatherInsight;
     pricingOptions: PricingOption[];
+    satelliteRecommendations?: SatelliteRecommendation[];
     risks: RiskItem[];
     alternatives: AlternativeSuggestion[];
     metadata: {
         areaKm2?: number;
         inputs: Record<string, unknown>;
+        satelliteAnalysis?: {
+            recommended: string[];
+            totalEvaluated: number;
+        };
     };
 }
 
@@ -91,5 +96,44 @@ export interface PricingExplorationResult {
     bestValue: PricingOption | null;
     fastestTurnaround: PricingOption | null;
     premiumOption: PricingOption | null;
+    satelliteRecommendations?: SatelliteRecommendation[];
+    tradeoffAnalysis?: {
+        costVsQuality: string[];
+        costVsSpeed: string[];
+        qualityVsSpeed: string[];
+        recommendations: string[];
+    };
+}
+
+export interface SatelliteRecommendation {
+    name: string;
+    operator: string;
+    score: number;
+    matchReason: string;
+    resolution: {
+        panchromatic?: number;
+        multispectral?: number;
+        sar?: number;
+    };
+    pricing: {
+        archivePerKm2?: number;
+        taskingPerKm2?: number;
+        minimumOrder?: number;
+    };
+    capabilities: string[];
+    idealFor: string[];
+    limitations: string[];
+    revisitTime: number;
+    swathWidth: number;
+    spectralBands: number;
+    availability: {
+        hasArchiveData: boolean;
+        nextPassEstimate?: string;
+        constraintsMet: boolean;
+    };
+    tradeoffs: {
+        pros: string[];
+        cons: string[];
+    };
 }
 

@@ -47,7 +47,15 @@ export class MCPRouter {
   /**
    * Route a method call to its handler
    */
-  async route(method: string, params?: Record<string, any>): Promise<any> {
+  async route(
+    method: string,
+    params?: Record<string, any>,
+    context?: {
+      clientId?: string;
+      streaming?: boolean;
+      onProgress?: (progress: any) => void;
+    }
+  ): Promise<any> {
     const handler = this.methods[method];
 
     if (!handler) {
@@ -55,6 +63,10 @@ export class MCPRouter {
     }
 
     try {
+      // Pass context to handler if provided
+      if (context) {
+        return await handler({ ...params, _context: context });
+      }
       return await handler(params);
     } catch (error) {
       logger.error(`Error in method handler ${method}:`, error);
@@ -77,19 +89,39 @@ mcpRouter.register('listMethods', async () => {
 
 // Register chat method with tool-calling
 mcpRouter.register('chat', async (params) => {
-  const { message, conversationId, context } = params || {};
+  const { message, conversationId, context, _context } = params || {};
 
   if (!message || typeof message !== 'string') {
     throw new Error('Message is required and must be a string');
   }
 
-  const response = await chatService.chat({
-    message,
-    conversationId,
-    context,
-  });
+  if (message.trim().length === 0) {
+    throw new Error('Message cannot be empty');
+  }
 
-  return response;
+  if (message.length > 10000) {
+    throw new Error('Message is too long (max 10000 characters)');
+  }
+
+  try {
+    const response = await chatService.chat(
+      {
+        message: message.trim(),
+        conversationId,
+        context,
+      },
+      _context // Pass streaming context if available
+    );
+
+    return response;
+  } catch (error) {
+    logger.error('Chat router error:', {
+      error: error instanceof Error ? error.message : String(error),
+      conversationId,
+      messageLength: message.length,
+    });
+    throw error;
+  }
 });
 
 // Register conversation management methods

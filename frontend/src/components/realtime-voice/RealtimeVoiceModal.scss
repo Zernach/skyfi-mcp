@@ -233,12 +233,45 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
+.realtime-voice-modal__starters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .realtime-voice-modal__starters-title {
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.01em;
   text-transform: uppercase;
   color: rgba(var(--color-white-rgb), 0.92);
+}
+
+.realtime-voice-modal__starters-close {
+  border: none;
+  background: rgba(var(--color-white-rgb), 0.15);
+  color: rgba(var(--color-white-rgb), 0.7);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.realtime-voice-modal__starters-close:hover {
+  background: rgba(var(--color-white-rgb), 0.25);
+  color: var(--color-white);
+  transform: scale(1.05);
+}
+
+.realtime-voice-modal__starters-close svg {
+  stroke-width: 2.5;
 }
 
 .realtime-voice-modal__starters-list {

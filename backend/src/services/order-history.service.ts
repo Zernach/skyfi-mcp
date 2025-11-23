@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import logger from '../utils/logger';
 import { skyfiClient } from '../integrations/skyfi/client';
+import { sessionHistoryManager } from './session-history-manager.service';
 
 export interface OrderHistoryResponse {
   success: boolean;
@@ -24,6 +25,10 @@ export interface OrderHistoryResponse {
     updatedAt: string;
     storedPages: number;
     uniqueOrders: number;
+  };
+  analytics?: {
+    totalOrders: number;
+    totalSearches: number;
   };
 }
 
@@ -99,6 +104,57 @@ function stableStringify(obj: Record<string, any>): string {
 export class OrderHistoryService {
   private sessions = new Map<string, OrderHistorySession>();
   private conversationSessions = new Map<string, Set<string>>();
+
+  /**
+   * Get session summary for a conversation (useful for showing order history)
+   */
+  getConversationSessions(conversationId: string): Array<{
+    sessionId: string;
+    createdAt: string;
+    updatedAt: string;
+    summary: string;
+    orderCount: number;
+    filters: Record<string, any>;
+  }> {
+    const sessionIds = this.conversationSessions.get(conversationId);
+    if (!sessionIds) {
+      return [];
+    }
+
+    return Array.from(sessionIds)
+      .map((id) => this.sessions.get(id))
+      .filter((s): s is OrderHistorySession => s !== undefined)
+      .map((session) => ({
+        sessionId: session.sessionId,
+        createdAt: new Date(session.createdAt).toISOString(),
+        updatedAt: new Date(session.updatedAt).toISOString(),
+        summary: this.describeFilters(session.filters),
+        orderCount: session.orderIds.size,
+        filters: session.filters,
+      }))
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  /**
+   * Get detailed session information
+   */
+  getSession(sessionId: string): OrderHistorySession | undefined {
+    return this.sessions.get(sessionId);
+  }
+
+  /**
+   * Get all orders from a session (across all pages)
+   */
+  getAllSessionOrders(sessionId: string): OrderSummary[] {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return [];
+    }
+
+    return session.pages
+      .sort((a, b) => a.offset - b.offset)
+      .flatMap((page) => page.orders);
+  }
 
   async listOrders(
     conversationId: string,
@@ -207,9 +263,19 @@ export class OrderHistoryService {
 
     this.persistSession(session);
 
+    // Track order lookup for analytics
+    if (summarized.length > 0) {
+      summarized.forEach(order => {
+        sessionHistoryManager.trackOrder(conversationId, order);
+      });
+    }
+
     const history = control.includeHistory ? [...session.history] : undefined;
 
     const summary = this.buildSummary(page, session.orderIds.size);
+
+    // Get analytics summary
+    const analytics = sessionHistoryManager.getAnalytics(conversationId);
 
     return {
       success: true,
@@ -235,6 +301,10 @@ export class OrderHistoryService {
         storedPages: session.pages.length,
         uniqueOrders: session.orderIds.size,
       },
+      analytics: analytics.totalOrders > 0 ? {
+        totalOrders: analytics.totalOrders,
+        totalSearches: analytics.totalSearches,
+      } : undefined,
     };
   }
 

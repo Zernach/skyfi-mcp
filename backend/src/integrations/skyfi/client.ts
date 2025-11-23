@@ -28,22 +28,8 @@ import {
   SkyFiServerError,
   SkyFiTimeoutError,
 } from './errors';
-import { getFallbackArchiveSearch, ArchiveSearchFallbackParams } from './fallback-data';
-
-const ARCHIVE_FALLBACK_ERROR_CODES = new Set([
-  'SERVER_ERROR',
-  'TIMEOUT_ERROR',
-  'RATE_LIMIT_ERROR',
-  'NOT_FOUND_ERROR',
-]);
-const TRANSIENT_ERRNO_CODES = new Set([
-  'ENOTFOUND',
-  'ECONNREFUSED',
-  'ECONNRESET',
-  'ETIMEDOUT',
-  'EAI_AGAIN',
-  'EHOSTUNREACH',
-]);
+// FALLBACK SYSTEM DISABLED - Imports kept for reference only
+// import { getFallbackArchiveSearch, ArchiveSearchFallbackParams } from './fallback-data';
 
 export interface SkyFiClientConfig {
   apiKey: string;
@@ -284,38 +270,52 @@ export class SkyFiClient {
 
     const cacheKey = `archive:${JSON.stringify(params)}`;
 
-    try {
-      const result = await this.getCached(cacheKey, 300, () =>
-        this.request<ArchiveSearchResponse>('POST', '/archive/search', params)
-      );
+    // Try multiple endpoint variations to find the working one
+    const endpoints = [
+      '/archive/search',
+      '/search',
+      '/v1/archive/search',
+      '/v1/search',
+      '/open-data/search'
+    ];
 
-      logger.info('archiveSearch succeeded', {
-        resultCount: result.results?.length || 0,
-        hasResults: !!result.results
-      });
+    let lastError: any = null;
 
-      return result;
-    } catch (error) {
-      logger.error('archiveSearch failed', {
-        error: error instanceof Error ? error.message : String(error),
-        errorName: error instanceof Error ? error.name : 'Unknown',
-        stack: error instanceof Error ? error.stack : undefined,
-        params,
-        baseUrl: this.baseUrl,
-      });
+    for (const endpoint of endpoints) {
+      try {
+        logger.debug(`Trying endpoint: ${endpoint}`, { endpoint, baseUrl: this.baseUrl });
 
-      const fallback = this.tryArchiveFallback(params, error);
-      if (fallback) {
-        logger.warn('Using fallback archive search dataset', {
-          params,
-          fallbackCount: fallback.results.length,
+        const result = await this.getCached(cacheKey, 300, () =>
+          this.request<ArchiveSearchResponse>('POST', endpoint, params)
+        );
+
+        logger.info('archiveSearch succeeded', {
+          endpoint,
+          resultCount: result.results?.length || 0,
+          hasResults: !!result.results
         });
-        this.cache.set(cacheKey, { data: fallback, expires: Date.now() + 60 * 1000 });
-        return fallback;
-      }
 
-      throw error;
+        return result;
+      } catch (error) {
+        lastError = error;
+        logger.debug(`Endpoint ${endpoint} failed, trying next...`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        continue;
+      }
     }
+
+    // All endpoints failed - throw the error (NO FALLBACK)
+    logger.error('archiveSearch failed for all endpoints - NO FALLBACK USED', {
+      error: lastError instanceof Error ? lastError.message : String(lastError),
+      errorName: lastError instanceof Error ? lastError.name : 'Unknown',
+      stack: lastError instanceof Error ? lastError.stack : undefined,
+      params,
+      baseUrl: this.baseUrl,
+      message: 'Fallback system is DISABLED - API must be fixed',
+    });
+
+    throw lastError;
   }
 
   /**
@@ -453,57 +453,9 @@ export class SkyFiClient {
     logger.info('Cache cleared');
   }
 
-  private tryArchiveFallback(
-    params: ArchiveSearchParams,
-    error: unknown
-  ): ArchiveSearchResponse | null {
-    if (!this.shouldUseArchiveFallback(error)) {
-      return null;
-    }
-
-    const fallbackParams: ArchiveSearchFallbackParams = {
-      ...params,
-    };
-
-    const fallback = getFallbackArchiveSearch(fallbackParams);
-    if (!fallback) {
-      logger.warn('No matching fallback archive dataset for parameters', {
-        params: fallbackParams,
-      });
-      return null;
-    }
-
-    return fallback;
-  }
-
-  private shouldUseArchiveFallback(error: unknown): boolean {
-    if (!error) {
-      return false;
-    }
-
-    if (error instanceof SkyFiAuthError || error instanceof SkyFiValidationError) {
-      return false;
-    }
-
-    if (error instanceof SkyFiError) {
-      if (!error.code) {
-        return true;
-      }
-
-      if (ARCHIVE_FALLBACK_ERROR_CODES.has(error.code)) {
-        return true;
-      }
-
-      return false;
-    }
-
-    const maybeErrno = error as NodeJS.ErrnoException;
-    if (typeof maybeErrno?.code === 'string' && TRANSIENT_ERRNO_CODES.has(maybeErrno.code)) {
-      return true;
-    }
-
-    return false;
-  }
+  // FALLBACK SYSTEM DISABLED
+  // All fallback methods have been removed per user request
+  // Real API errors will now be thrown instead of using mock data
 }
 
 // Singleton instance

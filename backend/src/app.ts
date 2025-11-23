@@ -6,6 +6,7 @@ import { config } from './config';
 import logger from './utils/logger';
 import mcpRoutes from './api/mcp.routes';
 import monitoringRoutes from './api/monitoring.routes';
+import webhookRoutes from './api/webhook.routes';
 
 /**
  * Create and configure Express application
@@ -41,6 +42,9 @@ export function createApp(): Application {
   // Monitoring routes
   app.use('/api/v1/monitoring', monitoringRoutes);
 
+  // Webhook routes
+  app.use('/api/v1/webhooks', webhookRoutes);
+
   // API routes placeholder
   app.get('/api/v1', (_req: Request, res: Response) => {
     res.json({
@@ -49,6 +53,8 @@ export function createApp(): Application {
       endpoints: {
         health: '/health',
         mcp: '/mcp',
+        monitoring: '/api/v1/monitoring',
+        webhooks: '/api/v1/webhooks',
         api: '/api/v1',
       },
     });
