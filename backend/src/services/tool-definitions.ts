@@ -1227,6 +1227,32 @@ export const skyfiTools: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'map_fly_to',
+            description:
+                'Navigate the map to a specific latitude and longitude. This tool centers the geospatial map on the provided coordinates and optionally adds a marker with a label. Use this when users want to view a specific location on the map or when you need to show them where something is located.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    lat: {
+                        type: 'number',
+                        description: 'Latitude of the location to navigate to (-90 to 90)',
+                    },
+                    lng: {
+                        type: 'number',
+                        description: 'Longitude of the location to navigate to (-180 to 180)',
+                    },
+                    location: {
+                        type: 'string',
+                        description: 'Optional label or name for the map marker (e.g., "Tokyo", "Search Result #1")',
+                    },
+                },
+                required: ['lat', 'lng'],
+            },
+        },
+    },
 ];
 
 /**

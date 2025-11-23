@@ -161,6 +161,10 @@ export class ToolExecutor {
                     result = await this.exportSessionHistory(args, context);
                     break;
 
+                case 'map_fly_to':
+                    result = await this.mapFlyTo(args);
+                    break;
+
                 default:
                     throw new Error(`Unknown tool: ${name}`);
             }
@@ -642,9 +646,9 @@ export class ToolExecutor {
      * Create an order for satellite imagery
      */
     private async createSatelliteOrder(args: any, context?: ToolExecutionContext): Promise<any> {
-        logger.info('createSatelliteOrder called', { 
+        logger.info('createSatelliteOrder called', {
             imageId: args.imageId,
-            hasContext: !!context 
+            hasContext: !!context
         });
 
         // AUTHENTICATION & PAYMENT CHECK: Verify before processing order
@@ -758,7 +762,7 @@ export class ToolExecutor {
 
             // Provide helpful error message to user
             const errorMsg = error instanceof Error ? error.message : String(error);
-            
+
             // Check if it's an auth error even though we validated earlier
             if (errorMsg.toLowerCase().includes('auth') || errorMsg.toLowerCase().includes('unauthorized')) {
                 return {
@@ -780,10 +784,10 @@ export class ToolExecutor {
      * Request satellite tasking (new capture)
      */
     private async requestSatelliteTasking(args: any, context?: ToolExecutionContext): Promise<any> {
-        logger.info('requestSatelliteTasking called', { 
+        logger.info('requestSatelliteTasking called', {
             hasLocation: !!args.location,
             hasAoi: !!args.aoi,
-            hasContext: !!context 
+            hasContext: !!context
         });
 
         // AUTHENTICATION & PAYMENT CHECK: Verify before processing tasking request
@@ -1987,7 +1991,7 @@ export class ToolExecutor {
             currentCriteria
         );
 
-        let message = recommendations.length > 0
+        const message = recommendations.length > 0
             ? `Found ${recommendations.length} personalized recommendation(s) based on your search history.`
             : 'No specific recommendations yet. Continue searching to build your history!';
 
@@ -2150,12 +2154,12 @@ export class ToolExecutor {
         const historyExport = sessionHistoryManager.exportHistory(_conversationId);
 
         if (format === 'summary') {
-        return {
-            success: true,
-            format: 'summary',
-            summary: {
-                conversationId: _conversationId,
-                exportedAt: historyExport.exportedAt,
+            return {
+                success: true,
+                format: 'summary',
+                summary: {
+                    conversationId: _conversationId,
+                    exportedAt: historyExport.exportedAt,
                     searchSessions: searchSessions.length,
                     orderSessions: orderSessions.length,
                     totalSearches: historyExport.analytics.totalSearches,
@@ -2187,6 +2191,38 @@ export class ToolExecutor {
             data: exportData,
             downloadUrl: `/mcp/export/${_conversationId}`,
             message: `Exported complete session history with ${searchSessions.length} search session(s) and ${orderSessions.length} order session(s).`,
+        };
+    }
+
+    /**
+     * Navigate map to specific coordinates
+     * This is a client-side tool that will be executed by the frontend
+     */
+    private async mapFlyTo(args: any): Promise<any> {
+        logger.info('mapFlyTo called', { lat: args.lat, lng: args.lng, location: args.location });
+
+        // Validate coordinates
+        const lat = typeof args.lat === 'number' ? args.lat : Number(args.lat);
+        const lng = typeof args.lng === 'number' ? args.lng : Number(args.lng);
+
+        if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+            throw new Error(`Invalid latitude: ${args.lat}. Must be between -90 and 90.`);
+        }
+
+        if (!Number.isFinite(lng) || lng < -180 || lng > 180) {
+            throw new Error(`Invalid longitude: ${args.lng}. Must be between -180 and 180.`);
+        }
+
+        const location = typeof args.location === 'string' ? args.location.trim() : undefined;
+
+        return {
+            success: true,
+            latitude: lat,
+            longitude: lng,
+            location: location || null,
+            message: location
+                ? `Navigating map to ${location} (${lat.toFixed(6)}, ${lng.toFixed(6)})`
+                : `Navigating map to coordinates (${lat.toFixed(6)}, ${lng.toFixed(6)})`,
         };
     }
 

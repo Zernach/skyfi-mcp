@@ -11,8 +11,7 @@ import {
   OPEN_METEO_ARCHIVE_URL,
   OPEN_METEO_FORECAST_URL,
 } from '../../constants/links';
-
-const PROD_BASE_URL = 'https://api.landscapesupply.app';
+import { VOICE_BASE_URL } from '../../constants/config';
 
 export interface ToolDefinition {
   name: string;
@@ -347,7 +346,7 @@ export const TOOL_HANDLERS: Record<string, ToolHandler> = {
 
     try {
       // Call the SkyFi MCP backend
-      const response = await fetch(`${PROD_BASE_URL}/mcp/message`, {
+      const response = await fetch(`${VOICE_BASE_URL}/mcp/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

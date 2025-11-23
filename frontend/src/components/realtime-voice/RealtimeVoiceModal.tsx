@@ -12,6 +12,7 @@ import { instructions } from '../../constants/prompts';
 import type { IMapCoords, MapMarkerDetails } from '../mbox/MBox';
 import { COLORS } from '../../constants/colors';
 import { TOOL_DEFINITIONS, executeTool, type ToolExecutionContext } from '../../lib/tools/registry';
+import { VOICE_BASE_URL } from '../../constants/config';
 import './RealtimeVoiceModal.scss';
 
 const CONVERSATION_STARTERS = [
@@ -20,8 +21,7 @@ const CONVERSATION_STARTERS = [
   "☀️ What's the weather like in Buenos Aires?",
 ];
 
-const PROD_BASE_URL = 'https://api.landscapesupply.app';
-const VOICE_RELAY_ENDPOINT = `${PROD_BASE_URL}/api/skyfi/relay`;
+const VOICE_RELAY_ENDPOINT = `${VOICE_BASE_URL}/api/grow/relay`;
 const DEFAULT_REALTIME_MODEL = 'gpt-realtime-2025-08-28';
 const RELAY_SESSION_EXPIRY_BUFFER_MS = 5_000;
 

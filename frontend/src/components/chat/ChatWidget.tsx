@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { executeTool, type ToolExecutionContext } from '../../lib/tools/registry';
 import { sseManager } from '../../lib/sse-manager';
+import { BASE_URL } from '../../constants/config';
 import './ChatWidget.scss';
 
 interface Message {
@@ -19,10 +20,6 @@ interface Message {
   status?: 'sending' | 'processing' | 'complete' | 'error';
   progress?: string;
 }
-
-const PROD_BASE_URL = 'https://api.skyfi.archlife.org';
-const DEV_BASE_URL = 'http://localhost:3000';
-const BASE_URL = process.env.NODE_ENV === 'production' ? PROD_BASE_URL : DEV_BASE_URL;
 
 // Enable streaming for real-time updates
 const USE_STREAMING = true;

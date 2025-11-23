@@ -4,10 +4,7 @@
  */
 
 import { SSEClient, SSEClientOptions } from './sse-client';
-
-const PROD_BASE_URL = 'https://api.skyfi.archlife.org';
-const DEV_BASE_URL = 'http://localhost:3000';
-const BASE_URL = process.env.NODE_ENV === 'production' ? PROD_BASE_URL : DEV_BASE_URL;
+import { BASE_URL } from '../constants/config';
 
 class SSEManager {
   private client: SSEClient | null = null;
@@ -58,7 +55,7 @@ class SSEManager {
         onError: (error) => {
           console.error('[SSEManager] Error:', error);
           this.isConnecting = false;
-          
+
           // Only reject if we've exceeded max reconnect attempts
           if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             this.connectionPromise = null;

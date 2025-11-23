@@ -100,10 +100,11 @@ export class SkyFiClient {
         case 400:
           logger.error('SkyFi API validation error', { status, data });
           throw new SkyFiValidationError(data?.message, data);
-        case 429:
+        case 429: {
           const retryAfter = parseInt(error.response.headers['retry-after'] || '60');
           logger.error('SkyFi API rate limit error', { status, retryAfter, data });
           throw new SkyFiRateLimitError(data?.message, retryAfter, data);
+        }
         case 408:
           logger.error('SkyFi API timeout error', { status, data });
           throw new SkyFiTimeoutError(data?.message, data);

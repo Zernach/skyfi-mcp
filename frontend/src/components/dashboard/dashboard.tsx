@@ -118,12 +118,12 @@ export function Dashboard() {
               isVisible={isSpaceAppsModalVisible}
               onDismiss={dismissSpaceAppsModal}
             />
-            <RealtimeVoiceModal
+            {false && <RealtimeVoiceModal
               onMarkerUpdate={updateMarkerInfo}
               onMapPositionChange={setMapPosition}
               onResetContext={resetRealtimeContext}
               isLargeScreen={isLargeScreen}
-            />
+            />}
             <ChatWidget 
               onMarkerUpdate={updateMarkerInfo}
               onMapPositionChange={setMapPosition}

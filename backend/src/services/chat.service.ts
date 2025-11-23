@@ -490,6 +490,8 @@ Be proactive in helping users accomplish their goals. If you need more informati
       onProgress?: (progress: any) => void;
     }
   ): Promise<ChatResponse> {
+    // Track tool arguments for client-side tool execution
+    const toolMetadata: Record<string, any> = {};
     try {
       // Get conversation history (with locking)
       let messages = this.conversationStore.get(conversationId);
@@ -629,6 +631,11 @@ Be proactive in helping users accomplish their goals. If you need more informati
           };
           await this.conversationStore.add(conversationId, assistantMessage);
 
+          // Track tool arguments for client-side execution
+          completion.toolCalls.forEach((tc) => {
+            toolMetadata[tc.name] = tc.arguments;
+          });
+
           // Execute tools with error handling
           let toolResults;
           try {
@@ -752,6 +759,7 @@ Be proactive in helping users accomplish their goals. If you need more informati
           model: openaiService.getModel(),
           executionTime,
           toolCallCount: toolsUsed.length,
+          ...toolMetadata, // Include tool arguments for client-side execution
         },
       };
     } catch (error) {
