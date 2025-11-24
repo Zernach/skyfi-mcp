@@ -1,5 +1,11 @@
 # SkyFi MCP
 
+
+
+https://github.com/user-attachments/assets/c24679fa-025a-4c81-a93c-6f03435d6a07
+
+
+
 AI-driven geospatial data platform enabling autonomous agents to interact with SkyFi's satellite imagery and data services through the Model Context Protocol (MCP).
 
 ## Overview
