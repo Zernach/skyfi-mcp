@@ -111,7 +111,7 @@ const configSchema = z.object({
 
   skyfi: z.object({
     apiKey: z.string(),
-    baseUrl: z.string().url().default('https://api.skyfi.com/v1'),
+    baseUrl: z.string().url().default('https://app.skyfi.com/platform-api'),
   }),
 
   openai: z.object({

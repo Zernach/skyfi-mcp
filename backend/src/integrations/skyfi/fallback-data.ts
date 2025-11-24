@@ -1,4 +1,4 @@
-import { ArchiveSearchParams, ArchiveSearchResponse, ArchiveSearchResult } from './types';
+import { ArchiveSearchParams, ArchiveSearchResponse, ArchiveResponse } from './types';
 
 export type ArchiveSearchFallbackParams = ArchiveSearchParams & {
   maxCloudCoverage?: number;
@@ -11,6 +11,18 @@ export type ArchiveSearchFallbackParams = ArchiveSearchParams & {
   };
 };
 
+// Legacy archive format used in fallback data
+interface LegacyArchiveResponse {
+  id: string;
+  satellite: string;
+  captureDate: string;
+  cloudCover: number;
+  gsd?: number;
+  thumbnail: string;
+  bbox: number[];
+  price: number;
+}
+
 interface FallbackScene {
   id: string;
   label: string;
@@ -19,7 +31,7 @@ interface FallbackScene {
     lon: number;
   };
   radiusKm: number;
-  results: ArchiveSearchResult[];
+  archives: LegacyArchiveResponse[];
 }
 
 const FALLBACK_SCENES: FallbackScene[] = [
@@ -28,13 +40,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'Paris, France',
     centroid: { lat: 48.8566, lon: 2.3522 },
     radiusKm: 75,
-    results: [
+    archives: [
       {
         id: 'PARIS-PLN-20240118',
         satellite: 'Pléiades Neo 4',
         captureDate: '2024-01-18T10:12:40Z',
         cloudCover: 8,
-        resolution: 0.3,
+        gsd: 0.3,
         thumbnail: 'https://example.skyfi.test/thumbnails/PARIS-PLN-20240118.jpg',
         bbox: [2.1861, 48.8122, 2.4934, 48.9103],
         price: 1125.5,
@@ -44,7 +56,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Sentinel-2A',
         captureDate: '2023-10-02T11:03:05Z',
         cloudCover: 21,
-        resolution: 1,
+        gsd: 1,
         thumbnail: 'https://example.skyfi.test/thumbnails/PARIS-S2A-20231002.jpg',
         bbox: [2.0795, 48.7448, 2.6403, 48.9757],
         price: 0,
@@ -54,7 +66,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'WorldView-3',
         captureDate: '2023-07-14T09:47:18Z',
         cloudCover: 2,
-        resolution: 0.31,
+        gsd: 0.31,
         thumbnail: 'https://example.skyfi.test/thumbnails/PARIS-WV03-20230714.jpg',
         bbox: [2.2551, 48.8324, 2.4098, 48.9052],
         price: 875,
@@ -64,7 +76,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'SPOT-6',
         captureDate: '2022-12-04T11:21:12Z',
         cloudCover: 4,
-        resolution: 1.5,
+        gsd: 1.5,
         thumbnail: 'https://example.skyfi.test/thumbnails/PARIS-SPOT6-20221204.jpg',
         bbox: [2.2112, 48.7926, 2.4723, 48.9268],
         price: 460.25,
@@ -76,13 +88,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'New York City, USA',
     centroid: { lat: 40.7128, lon: -74.006 },
     radiusKm: 90,
-    results: [
+    archives: [
       {
         id: 'NYC-WV02-20230921',
         satellite: 'WorldView-2',
         captureDate: '2023-09-21T15:26:18Z',
         cloudCover: 5,
-        resolution: 0.46,
+        gsd: 0.46,
         thumbnail: 'https://example.skyfi.test/thumbnails/NYC-WV02-20230921.jpg',
         bbox: [-74.0753, 40.665, -73.9107, 40.768],
         price: 910.4,
@@ -92,7 +104,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Landsat 8',
         captureDate: '2023-04-15T16:02:36Z',
         cloudCover: 12,
-        resolution: 15,
+        gsd: 15,
         thumbnail: 'https://example.skyfi.test/thumbnails/NYC-LANDSAT8-20230415.jpg',
         bbox: [-74.2558, 40.4957, -73.6995, 40.9176],
         price: 0,
@@ -104,13 +116,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'London, UK',
     centroid: { lat: 51.5074, lon: -0.1278 },
     radiusKm: 80,
-    results: [
+    archives: [
       {
         id: 'LON-PLN-20240201',
         satellite: 'Pléiades Neo 3',
         captureDate: '2024-02-01T11:30:22Z',
         cloudCover: 15,
-        resolution: 0.3,
+        gsd: 0.3,
         thumbnail: 'https://example.skyfi.test/thumbnails/LON-PLN-20240201.jpg',
         bbox: [-0.2416, 51.4382, 0.0077, 51.5723],
         price: 1050.0,
@@ -120,7 +132,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Sentinel-2B',
         captureDate: '2023-11-15T11:15:33Z',
         cloudCover: 28,
-        resolution: 10,
+        gsd: 10,
         thumbnail: 'https://example.skyfi.test/thumbnails/LON-S2B-20231115.jpg',
         bbox: [-0.3897, 51.3621, 0.1545, 51.6464],
         price: 0,
@@ -132,13 +144,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'Tokyo, Japan',
     centroid: { lat: 35.6762, lon: 139.6503 },
     radiusKm: 85,
-    results: [
+    archives: [
       {
         id: 'TYO-WV03-20240105',
         satellite: 'WorldView-3',
         captureDate: '2024-01-05T02:15:45Z',
         cloudCover: 6,
-        resolution: 0.31,
+        gsd: 0.31,
         thumbnail: 'https://example.skyfi.test/thumbnails/TYO-WV03-20240105.jpg',
         bbox: [139.5503, 35.5762, 139.7503, 35.7762],
         price: 925.0,
@@ -148,7 +160,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Sentinel-2A',
         captureDate: '2023-12-01T02:45:12Z',
         cloudCover: 18,
-        resolution: 10,
+        gsd: 10,
         thumbnail: 'https://example.skyfi.test/thumbnails/TYO-S2A-20231201.jpg',
         bbox: [139.4503, 35.4762, 139.8503, 35.8762],
         price: 0,
@@ -160,13 +172,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'San Francisco, USA',
     centroid: { lat: 37.7749, lon: -122.4194 },
     radiusKm: 70,
-    results: [
+    archives: [
       {
         id: 'SF-WV02-20240110',
         satellite: 'WorldView-2',
         captureDate: '2024-01-10T18:30:15Z',
         cloudCover: 3,
-        resolution: 0.46,
+        gsd: 0.46,
         thumbnail: 'https://example.skyfi.test/thumbnails/SF-WV02-20240110.jpg',
         bbox: [-122.5194, 37.6749, -122.3194, 37.8749],
         price: 880.0,
@@ -176,7 +188,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Landsat 9',
         captureDate: '2023-11-20T18:15:45Z',
         cloudCover: 8,
-        resolution: 15,
+        gsd: 15,
         thumbnail: 'https://example.skyfi.test/thumbnails/SF-LANDSAT9-20231120.jpg',
         bbox: [-122.6194, 37.5749, -122.2194, 37.9749],
         price: 0,
@@ -188,13 +200,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'Sydney, Australia',
     centroid: { lat: -33.8688, lon: 151.2093 },
     radiusKm: 75,
-    results: [
+    archives: [
       {
         id: 'SYD-PLN-20240115',
         satellite: 'Pléiades Neo 4',
         captureDate: '2024-01-15T22:45:30Z',
         cloudCover: 5,
-        resolution: 0.3,
+        gsd: 0.3,
         thumbnail: 'https://example.skyfi.test/thumbnails/SYD-PLN-20240115.jpg',
         bbox: [151.1093, -33.9688, 151.3093, -33.7688],
         price: 1075.0,
@@ -204,7 +216,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Sentinel-2B',
         captureDate: '2023-12-10T22:30:12Z',
         cloudCover: 12,
-        resolution: 10,
+        gsd: 10,
         thumbnail: 'https://example.skyfi.test/thumbnails/SYD-S2B-20231210.jpg',
         bbox: [151.0093, -34.0688, 151.4093, -33.6688],
         price: 0,
@@ -216,13 +228,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'Dubai, UAE',
     centroid: { lat: 25.2048, lon: 55.2708 },
     radiusKm: 65,
-    results: [
+    archives: [
       {
         id: 'DXB-WV03-20240120',
         satellite: 'WorldView-3',
         captureDate: '2024-01-20T07:15:40Z',
         cloudCover: 2,
-        resolution: 0.31,
+        gsd: 0.31,
         thumbnail: 'https://example.skyfi.test/thumbnails/DXB-WV03-20240120.jpg',
         bbox: [55.1708, 25.1048, 55.3708, 25.3048],
         price: 950.0,
@@ -232,7 +244,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Sentinel-2A',
         captureDate: '2023-12-05T07:00:20Z',
         cloudCover: 4,
-        resolution: 10,
+        gsd: 10,
         thumbnail: 'https://example.skyfi.test/thumbnails/DXB-S2A-20231205.jpg',
         bbox: [55.0708, 25.0048, 55.4708, 25.4048],
         price: 0,
@@ -244,13 +256,13 @@ const FALLBACK_SCENES: FallbackScene[] = [
     label: 'Singapore',
     centroid: { lat: 1.3521, lon: 103.8198 },
     radiusKm: 55,
-    results: [
+    archives: [
       {
         id: 'SIN-PLN-20240108',
         satellite: 'Pléiades Neo 3',
         captureDate: '2024-01-08T03:20:15Z',
         cloudCover: 8,
-        resolution: 0.3,
+        gsd: 0.3,
         thumbnail: 'https://example.skyfi.test/thumbnails/SIN-PLN-20240108.jpg',
         bbox: [103.7198, 1.2521, 103.9198, 1.4521],
         price: 1100.0,
@@ -260,7 +272,7 @@ const FALLBACK_SCENES: FallbackScene[] = [
         satellite: 'Sentinel-2B',
         captureDate: '2023-11-25T03:10:45Z',
         cloudCover: 22,
-        resolution: 10,
+        gsd: 10,
         thumbnail: 'https://example.skyfi.test/thumbnails/SIN-S2B-20231125.jpg',
         bbox: [103.6198, 1.1521, 104.0198, 1.5521],
         price: 0,
@@ -297,21 +309,23 @@ const parseDateOrNull = (value?: string) => {
 };
 
 const matchesFilters = (
-  result: ArchiveSearchResult,
+  result: LegacyArchiveResponse,
   params: ArchiveSearchFallbackParams
 ) => {
   const cloudLimit = params.maxCloudCoverage ?? params.maxCloudCover;
-  if (typeof cloudLimit === 'number' && result.cloudCover > cloudLimit) {
+  const cloudCover = result.cloudCover ?? 0;
+  if (typeof cloudLimit === 'number' && cloudCover > cloudLimit) {
     return false;
   }
 
   const minResolution = params.minResolution ?? params.resolution?.min;
-  if (typeof minResolution === 'number' && result.resolution < minResolution) {
+  const resolution = result.gsd ?? 0;
+  if (typeof minResolution === 'number' && resolution < minResolution) {
     return false;
   }
 
   if (
-    !withinRange(result.resolution, params.resolution?.min, params.resolution?.max)
+    !withinRange(resolution, params.resolution?.min, params.resolution?.max)
   ) {
     return false;
   }
@@ -358,13 +372,32 @@ export const getFallbackArchiveSearch = (
     return null;
   }
 
-  const filtered = match.results.filter((result) => matchesFilters(result, params));
+  const filtered = match.archives.filter((result) => matchesFilters(result, params));
   const offset = params.offset ?? 0;
   const limit = params.limit ?? 10;
   const paged = filtered.slice(offset, offset + limit);
 
+  // Convert legacy format to ArchiveResponse format
+  const convertedArchives: ArchiveResponse[] = paged.map((legacy) => ({
+    archiveId: legacy.id,
+    provider: 'PLANET' as any, // Default provider for fallback data
+    productType: 'DAY' as any,
+    captureTimestamp: legacy.captureDate,
+    cloudCoveragePercent: legacy.cloudCover,
+    gsd: legacy.gsd,
+    footprint: `POLYGON ((${legacy.bbox[0]} ${legacy.bbox[1]}, ${legacy.bbox[2]} ${legacy.bbox[1]}, ${legacy.bbox[2]} ${legacy.bbox[3]}, ${legacy.bbox[0]} ${legacy.bbox[3]}, ${legacy.bbox[0]} ${legacy.bbox[1]}))`,
+    priceForOneSquareKm: legacy.price,
+    thumbnailUrls: legacy.thumbnail ? { default: legacy.thumbnail } : undefined,
+    metadata: {
+      satellite: legacy.satellite,
+      bbox: legacy.bbox,
+    },
+  }));
+
   return {
-    results: paged,
+    request: params,
+    archives: convertedArchives,
+    results: convertedArchives, // For legacy compatibility
     total: filtered.length,
     limit,
     offset,

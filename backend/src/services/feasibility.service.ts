@@ -530,6 +530,7 @@ class FeasibilityService {
 
         const params: ArchiveSearchParams = {
             location: request.location,
+            aoi: (request.aoi as any) || '', // Will be converted from location if not provided
             limit: 20,
         };
 
@@ -585,21 +586,21 @@ class FeasibilityService {
         response: ArchiveSearchResponse,
         request: FeasibilityRequest
     ): CoverageDetails {
-        const results = response.results ?? [];
+        const results = response.archives || response.results || [];
         const availableScenes = results.length;
         const bestCloud = results.reduce<number | undefined>((best, scene) => {
-            if (typeof scene.cloudCover !== 'number') {
+            if (typeof scene.cloudCoveragePercent !== 'number') {
                 return best;
             }
-            if (best === undefined || scene.cloudCover < best) {
-                return scene.cloudCover;
+            if (best === undefined || scene.cloudCoveragePercent < best) {
+                return scene.cloudCoveragePercent;
             }
             return best;
         }, undefined);
 
         const averageCloud =
             results.length > 0
-                ? results.reduce((sum, scene) => sum + (scene.cloudCover ?? DEFAULT_MAX_CLOUD), 0) /
+                ? results.reduce((sum, scene) => sum + (scene.cloudCoveragePercent ?? DEFAULT_MAX_CLOUD), 0) /
                   results.length
                 : undefined;
 
@@ -614,12 +615,16 @@ class FeasibilityService {
         }, undefined);
 
         const newestCapture = results
-            .map((scene) => scene.captureDate)
+            .map((scene) => scene.captureTimestamp)
             .filter(Boolean)
             .sort((a, b) => Date.parse(b) - Date.parse(a))[0];
 
         const satellites = Array.from(
-            new Set(results.map((scene) => scene.satellite).filter(Boolean))
+            new Set(
+                results
+                    .map((scene) => scene.provider || scene.constellation)
+                    .filter((s): s is string => Boolean(s))
+            )
         );
 
         const notes = buildCoverageNotes(

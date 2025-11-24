@@ -5,19 +5,43 @@ import { RateLimiter } from './ratelimit';
 import {
   ArchiveSearchParams,
   ArchiveSearchResponse,
+  ArchiveResponse,
   Order,
+  ArchiveOrderResponse,
+  TaskingOrderResponse,
   OrderFilters,
   OrderParams,
+  ArchiveOrderRequest,
+  TaskingOrderRequest,
   Tasking,
   TaskingParams,
   PriceEstimateParams,
   PriceEstimate,
+  PricingRequest,
+  PricingResponse,
   WebhookParams,
   Webhook,
   CreateAOIParams,
   UpdateAOIParams,
   AOI,
+  GeoJSON,
   SkyFiAPIResponse,
+  PingResponse,
+  HealthCheckResponse,
+  WhoamiUser,
+  PlatformApiFeasibilityTaskRequest,
+  PlatformFeasibilityTaskResponse,
+  PlatformApiPassPredictionRequest,
+  PlatformPassPredictionResponse,
+  CreateNotificationRequest,
+  NotificationResponse,
+  NotificationWithHistoryResponse,
+  ListNotificationsRequest,
+  ListNotificationsResponse,
+  DemoDeliveryRequest,
+  DemoDeliveryResponse,
+  OrderRedeliveryRequest,
+  OrderInfoTypesResponse,
 } from './types';
 import {
   SkyFiError,
@@ -166,7 +190,7 @@ export class SkyFiClient {
         }
       });
 
-      const response = await this.axios.request<SkyFiAPIResponse<T>>({
+      const response = await this.axios.request<T | SkyFiAPIResponse<T>>({
         method,
         url: endpoint,
         data,
@@ -176,25 +200,30 @@ export class SkyFiClient {
         status: response.status,
         statusText: response.statusText,
         hasData: !!response.data,
-        success: response.data.success,
       });
 
-      if (response.data.success) {
-        return response.data.data as T;
+      // Handle both wrapped (SkyFiAPIResponse) and direct responses
+      const responseData = response.data as any;
+      if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+        // Wrapped response
+        if (responseData.success) {
+          return responseData.data as T;
+        }
+        const errorMessage = responseData.error?.message || 'API request failed';
+        logger.error('API returned unsuccessful response', {
+          error: errorMessage,
+          errorCode: responseData.error?.code,
+          responseData: responseData,
+        });
+        throw new SkyFiError(
+          errorMessage,
+          undefined,
+          responseData.error?.code
+        );
       }
 
-      const errorMessage = response.data.error?.message || 'API request failed';
-      logger.error('API returned unsuccessful response', {
-        error: errorMessage,
-        errorCode: response.data.error?.code,
-        responseData: response.data,
-      });
-
-      throw new SkyFiError(
-        errorMessage,
-        undefined,
-        response.data.error?.code
-      );
+      // Direct response (most SkyFi API endpoints return data directly)
+      return responseData as T;
     } catch (error) {
       // Log detailed error information
       if (error instanceof SkyFiError) {
@@ -260,7 +289,8 @@ export class SkyFiClient {
   }
 
   /**
-   * Archive Search
+   * Archive Search - POST /archives
+   * Official endpoint: https://app.skyfi.com/platform-api/archives
    */
   async archiveSearch(params: ArchiveSearchParams): Promise<ArchiveSearchResponse> {
     logger.info('archiveSearch called', {
@@ -269,87 +299,196 @@ export class SkyFiClient {
       hasApiKey: !!this.apiKey
     });
 
-    const cacheKey = `archive:${JSON.stringify(params)}`;
+    // Normalize params to official API format
+    const apiParams: any = {
+      aoi: params.aoi || (params.location ? this.convertGeoJSONToWKT(params.location) : undefined),
+    };
 
-    // Try multiple endpoint variations to find the working one
-    const endpoints = [
-      '/archive/search',
-      '/search',
-      '/v1/archive/search',
-      '/v1/search',
-      '/open-data/search'
-    ];
-
-    let lastError: any = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        logger.debug(`Trying endpoint: ${endpoint}`, { endpoint, baseUrl: this.baseUrl });
-
-        const result = await this.getCached(cacheKey, 300, () =>
-          this.request<ArchiveSearchResponse>('POST', endpoint, params)
-        );
-
-        logger.info('archiveSearch succeeded', {
-          endpoint,
-          resultCount: result.results?.length || 0,
-          hasResults: !!result.results
-        });
-
-        return result;
-      } catch (error) {
-        lastError = error;
-        logger.debug(`Endpoint ${endpoint} failed, trying next...`, {
-          error: error instanceof Error ? error.message : String(error)
-        });
-        continue;
-      }
+    if (!apiParams.aoi) {
+      throw new SkyFiValidationError('Either aoi (WKT polygon) or location (GeoJSON) is required');
     }
 
-    // All endpoints failed - throw the error (NO FALLBACK)
-    logger.error('archiveSearch failed for all endpoints - NO FALLBACK USED', {
-      error: lastError instanceof Error ? lastError.message : String(lastError),
-      errorName: lastError instanceof Error ? lastError.name : 'Unknown',
-      stack: lastError instanceof Error ? lastError.stack : undefined,
-      params,
-      baseUrl: this.baseUrl,
-      message: 'Fallback system is DISABLED - API must be fixed',
+    if (params.fromDate || params.startDate) {
+      apiParams.fromDate = params.fromDate || params.startDate;
+    }
+    if (params.toDate || params.endDate) {
+      apiParams.toDate = params.toDate || params.endDate;
+    }
+    if (params.maxCloudCoveragePercent !== undefined || params.maxCloudCover !== undefined) {
+      apiParams.maxCloudCoveragePercent = params.maxCloudCoveragePercent ?? params.maxCloudCover;
+    }
+    if (params.maxOffNadirAngle !== undefined) {
+      apiParams.maxOffNadirAngle = params.maxOffNadirAngle;
+    }
+    if (params.resolutions) {
+      apiParams.resolutions = params.resolutions;
+    }
+    if (params.productTypes) {
+      apiParams.productTypes = params.productTypes;
+    }
+    if (params.providers) {
+      apiParams.providers = params.providers;
+    }
+    if (params.openData !== undefined) {
+      apiParams.openData = params.openData;
+    }
+    if (params.minOverlapRatio !== undefined) {
+      apiParams.minOverlapRatio = params.minOverlapRatio;
+    }
+    if (params.pageSize || params.limit) {
+      apiParams.pageSize = params.pageSize || params.limit;
+    }
+    if (params.page) {
+      apiParams.page = params.page;
+    }
+
+    const cacheKey = `archive:${JSON.stringify(apiParams)}`;
+
+    // Use official endpoint: POST /archives
+    const result = await this.getCached(cacheKey, 300, () =>
+      this.request<ArchiveSearchResponse>('POST', '/archives', apiParams)
+    );
+
+    // Handle pagination: if nextPage exists, use GET /archives?page=...
+    if (result.nextPage) {
+      // Note: For subsequent pages, use GET /archives?page={nextPage}
+      // This is handled by the caller if needed
+    }
+
+    logger.info('archiveSearch succeeded', {
+      resultCount: result.archives?.length || result.results?.length || 0,
+      hasResults: !!(result.archives?.length || result.results?.length),
+      nextPage: result.nextPage
     });
 
-    throw lastError;
+    return result;
   }
 
   /**
-   * Get Order by ID
+   * Get Archive by ID - GET /archives/{archive_id}
    */
-  async getOrder(orderId: string): Promise<Order> {
+  async getArchive(archiveId: string): Promise<ArchiveResponse> {
+    const cacheKey = `archive:${archiveId}`;
+    return this.getCached(cacheKey, 300, () =>
+      this.request<ArchiveResponse>('GET', `/archives/${archiveId}`)
+    );
+  }
+
+  /**
+   * Get Archives (pagination) - GET /archives?page=...
+   */
+  async getArchivesPage(pageToken: string): Promise<ArchiveSearchResponse> {
+    return this.request<ArchiveSearchResponse>('GET', `/archives?page=${encodeURIComponent(pageToken)}`);
+  }
+
+  /**
+   * Get Order by ID - GET /orders/{order_id}
+   * Returns OrderInfoTypesResponse with order and events
+   */
+  async getOrder(orderId: string): Promise<OrderInfoTypesResponse> {
     const cacheKey = `order:${orderId}`;
     return this.getCached(cacheKey, 60, () =>
-      this.request<Order>('GET', `/orders/${orderId}`)
+      this.request<OrderInfoTypesResponse>('GET', `/orders/${orderId}`)
     );
   }
 
   /**
-   * List Orders
+   * List Orders - GET /orders
    */
-  async listOrders(filters?: OrderFilters): Promise<Order[]> {
+  async listOrders(filters?: OrderFilters): Promise<{ orders: Order[]; total: number }> {
     const cacheKey = `orders:${JSON.stringify(filters)}`;
+    const queryParams = new URLSearchParams();
+    if (filters?.orderType) queryParams.append('orderType', filters.orderType);
+    if (filters?.pageNumber !== undefined) queryParams.append('pageNumber', String(filters.pageNumber));
+    if (filters?.pageSize) queryParams.append('pageSize', String(filters.pageSize));
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/orders?${queryString}` : '/orders';
+    
     return this.getCached(cacheKey, 60, () =>
-      this.request<Order[]>('GET', '/orders', filters)
+      this.request<{ orders: Order[]; total: number }>('GET', endpoint)
     );
   }
 
   /**
-   * Create Order
+   * Create Archive Order - POST /order-archive
+   */
+  async createArchiveOrder(params: ArchiveOrderRequest): Promise<ArchiveOrderResponse> {
+    // Clear cache on create
+    this.cache.clear();
+    return this.request<ArchiveOrderResponse>('POST', '/order-archive', params);
+  }
+
+  /**
+   * Create Tasking Order - POST /order-tasking
+   */
+  async createTaskingOrder(params: TaskingOrderRequest): Promise<TaskingOrderResponse> {
+    // Clear cache on create
+    this.cache.clear();
+    return this.request<TaskingOrderResponse>('POST', '/order-tasking', params);
+  }
+
+  /**
+   * Create Order (legacy support - determines type automatically)
    */
   async createOrder(params: OrderParams): Promise<Order> {
     // Clear cache on create
     this.cache.clear();
-    return this.request<Order>('POST', '/orders', params);
+    
+    // If archiveId is provided, create archive order
+    if (params.archiveId) {
+      if (!params.aoi && !params.location) {
+        throw new SkyFiValidationError('AOI is required for archive orders');
+      }
+      if (!params.deliveryDriver || !params.deliveryParams) {
+        throw new SkyFiValidationError('deliveryDriver and deliveryParams are required');
+      }
+      
+      const archiveOrder: ArchiveOrderRequest = {
+        aoi: params.aoi || this.convertGeoJSONToWKT(params.location!),
+        archiveId: params.archiveId,
+        deliveryDriver: params.deliveryDriver,
+        deliveryParams: params.deliveryParams,
+        metadata: params.metadata,
+        webhook_url: params.webhookUrl || params.webhook_url,
+      };
+      return this.createArchiveOrder(archiveOrder);
+    }
+    
+    // Otherwise, treat as tasking order (legacy)
+    throw new SkyFiValidationError('Use createTaskingOrder for tasking orders or provide archiveId for archive orders');
   }
 
   /**
-   * Get Tasking by ID
+   * Get Order Deliverable - GET /orders/{order_id}/{deliverable_type}
+   * Returns redirect to signed download URL
+   */
+  async getOrderDeliverable(orderId: string, deliverableType: 'image' | 'payload'): Promise<string> {
+    const response = await this.axios.request({
+      method: 'GET',
+      url: `/orders/${orderId}/${deliverableType}`,
+      maxRedirects: 0,
+      validateStatus: (status) => status >= 200 && status < 400,
+    });
+    
+    // Follow redirect to get signed URL
+    if (response.status >= 300 && response.status < 400) {
+      return response.headers.location || '';
+    }
+    
+    throw new SkyFiError('No redirect URL returned for deliverable');
+  }
+
+  /**
+   * Redelivery - POST /orders/{order_id}/redelivery
+   */
+  async redeliverOrder(orderId: string, params: OrderRedeliveryRequest): Promise<void> {
+    this.cache.delete(`order:${orderId}`);
+    return this.request<void>('POST', `/orders/${orderId}/redelivery`, params);
+  }
+
+  /**
+   * Get Tasking by ID (legacy - use getOrder instead)
    */
   async getTasking(taskId: string): Promise<Tasking> {
     const cacheKey = `tasking:${taskId}`;
@@ -359,20 +498,58 @@ export class SkyFiClient {
   }
 
   /**
-   * Create Tasking
+   * Create Tasking (legacy - use createTaskingOrder instead)
    */
   async createTasking(params: TaskingParams): Promise<Tasking> {
     return this.request<Tasking>('POST', '/tasking', params);
   }
 
   /**
-   * Estimate Price
+   * Pricing - POST /pricing
+   */
+  async getPricing(params: PricingRequest): Promise<PricingResponse> {
+    const cacheKey = `pricing:${JSON.stringify(params)}`;
+    return this.getCached(cacheKey, 300, () =>
+      this.request<PricingResponse>('POST', '/pricing', params)
+    );
+  }
+
+  /**
+   * Estimate Price (legacy support - converts to PricingRequest)
    */
   async estimatePrice(params: PriceEstimateParams): Promise<PriceEstimate> {
-    const cacheKey = `price:${JSON.stringify(params)}`;
-    return this.getCached(cacheKey, 300, () =>
-      this.request<PriceEstimate>('POST', '/pricing/estimate', params)
-    );
+    // Convert legacy params to PricingRequest
+    const pricingRequest: PricingRequest = {
+      aoi: params.aoi || this.convertGeoJSONToWKT(params.location!),
+    };
+    
+    if (params.productTypes) {
+      pricingRequest.productTypes = params.productTypes;
+    }
+    if (params.providers) {
+      pricingRequest.providers = params.providers;
+    }
+    if (params.startDate) {
+      pricingRequest.startDate = params.startDate;
+    }
+    if (params.endDate) {
+      pricingRequest.endDate = params.endDate;
+    }
+    
+    const pricingResponse = await this.getPricing(pricingRequest);
+    
+    // Convert to legacy PriceEstimate format
+    const firstProduct = pricingResponse.products?.[0];
+    return {
+      estimatedPrice: pricingResponse.totalEstimatedPrice || firstProduct?.pricePerSquareKm || 0,
+      currency: pricingResponse.currency || firstProduct?.currency || 'USD',
+      breakdown: {
+        base: 0,
+        area: pricingResponse.totalEstimatedPrice || 0,
+        resolution: 0,
+        urgency: 0,
+      },
+    };
   }
 
   /**
@@ -444,6 +621,157 @@ export class SkyFiClient {
   async deleteWebhook(webhookId: string): Promise<void> {
     this.cache.delete('webhooks:list');
     return this.request<void>('DELETE', `/webhooks/${webhookId}`);
+  }
+
+  /**
+   * Health & Auth Endpoints
+   */
+
+  /**
+   * Ping - GET /ping
+   */
+  async ping(): Promise<PingResponse> {
+    return this.request<PingResponse>('GET', '/ping');
+  }
+
+  /**
+   * Health Check - GET /health_check
+   */
+  async healthCheck(): Promise<HealthCheckResponse> {
+    return this.request<HealthCheckResponse>('GET', '/health_check');
+  }
+
+  /**
+   * Whoami - GET /auth/whoami
+   */
+  async whoami(): Promise<WhoamiUser> {
+    return this.request<WhoamiUser>('GET', '/auth/whoami');
+  }
+
+  /**
+   * Demo Delivery - POST /demo-delivery
+   */
+  async demoDelivery(params: DemoDeliveryRequest): Promise<DemoDeliveryResponse> {
+    return this.request<DemoDeliveryResponse>('POST', '/demo-delivery', params);
+  }
+
+  /**
+   * Feasibility Endpoints
+   */
+
+  /**
+   * Create Feasibility Task - POST /feasibility
+   */
+  async createFeasibilityTask(params: PlatformApiFeasibilityTaskRequest): Promise<PlatformFeasibilityTaskResponse> {
+    return this.request<PlatformFeasibilityTaskResponse>('POST', '/feasibility', params);
+  }
+
+  /**
+   * Get Feasibility Task - GET /feasibility/{feasibility_id}
+   */
+  async getFeasibilityTask(feasibilityId: string): Promise<PlatformFeasibilityTaskResponse | null> {
+    const cacheKey = `feasibility:${feasibilityId}`;
+    return this.getCached(cacheKey, 30, () =>
+      this.request<PlatformFeasibilityTaskResponse | null>('GET', `/feasibility/${feasibilityId}`)
+    );
+  }
+
+  /**
+   * Pass Prediction - POST /feasibility/pass-prediction
+   */
+  async getPassPrediction(params: PlatformApiPassPredictionRequest): Promise<PlatformPassPredictionResponse> {
+    const cacheKey = `pass-prediction:${JSON.stringify(params)}`;
+    return this.getCached(cacheKey, 300, () =>
+      this.request<PlatformPassPredictionResponse>('POST', '/feasibility/pass-prediction', params)
+    );
+  }
+
+  /**
+   * Notifications Endpoints
+   */
+
+  /**
+   * Create Notification - POST /notifications
+   */
+  async createNotification(params: CreateNotificationRequest): Promise<NotificationResponse> {
+    this.cache.delete('notifications:list');
+    return this.request<NotificationResponse>('POST', '/notifications', params);
+  }
+
+  /**
+   * List Notifications - GET /notifications
+   */
+  async listNotifications(params?: ListNotificationsRequest): Promise<ListNotificationsResponse> {
+    const cacheKey = `notifications:${JSON.stringify(params)}`;
+    const queryParams = new URLSearchParams();
+    if (params?.pageNumber !== undefined) queryParams.append('pageNumber', String(params.pageNumber));
+    if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
+    
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/notifications?${queryString}` : '/notifications';
+    
+    return this.getCached(cacheKey, 300, () =>
+      this.request<ListNotificationsResponse>('GET', endpoint)
+    );
+  }
+
+  /**
+   * Get Notification - GET /notifications/{notification_id}
+   */
+  async getNotification(notificationId: string): Promise<NotificationWithHistoryResponse> {
+    const cacheKey = `notification:${notificationId}`;
+    return this.getCached(cacheKey, 300, () =>
+      this.request<NotificationWithHistoryResponse>('GET', `/notifications/${notificationId}`)
+    );
+  }
+
+  /**
+   * Delete Notification - DELETE /notifications/{notification_id}
+   */
+  async deleteNotification(notificationId: string): Promise<void> {
+    this.cache.delete('notifications:list');
+    this.cache.delete(`notification:${notificationId}`);
+    return this.request<void>('DELETE', `/notifications/${notificationId}`);
+  }
+
+  /**
+   * Utility Methods
+   */
+
+  /**
+   * Convert GeoJSON to WKT Polygon (simple conversion)
+   * Note: This is a basic implementation. For production, use a proper GeoJSON to WKT library.
+   */
+  private convertGeoJSONToWKT(geoJson: GeoJSON): string {
+    if (!geoJson || !geoJson.coordinates) {
+      throw new SkyFiValidationError('Invalid GeoJSON: coordinates required');
+    }
+
+    // Handle Polygon coordinates: [[[lon, lat], [lon, lat], ...]]
+    if (geoJson.type === 'Polygon' && Array.isArray(geoJson.coordinates)) {
+      const rings = geoJson.coordinates[0]; // First ring (exterior)
+      if (Array.isArray(rings) && rings.length > 0) {
+        const points = rings.map((coord: any) => {
+          if (Array.isArray(coord) && coord.length >= 2) {
+            return `${coord[0]} ${coord[1]}`;
+          }
+          throw new SkyFiValidationError('Invalid coordinate format');
+        }).join(', ');
+        return `POLYGON ((${points}))`;
+      }
+    }
+
+    // Handle Point coordinates: [lon, lat]
+    if (geoJson.type === 'Point' && Array.isArray(geoJson.coordinates) && geoJson.coordinates.length >= 2) {
+      const coords = geoJson.coordinates as number[];
+      const lon = coords[0];
+      const lat = coords[1];
+      // Convert point to small square polygon (approximation)
+      const size = 0.01; // ~1km at equator
+      return `POLYGON ((${lon - size} ${lat - size}, ${lon + size} ${lat - size}, ${lon + size} ${lat + size}, ${lon - size} ${lat + size}, ${lon - size} ${lat - size}))`;
+    }
+
+    throw new SkyFiValidationError(`Unsupported GeoJSON type: ${geoJson.type}. Only Polygon and Point are supported.`);
   }
 
   /**

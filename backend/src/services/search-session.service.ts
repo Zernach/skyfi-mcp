@@ -233,29 +233,30 @@ export class SearchSessionService {
 
     const response = await skyfiClient.archiveSearch(params as any);
 
-    const pageIndex = this.calculatePageIndex(response.offset, response.limit);
+    const pageIndex = this.calculatePageIndex(response.offset ?? 0, response.limit ?? 10);
+    const archiveResults = response.archives || response.results || [];
     const hasMore =
       typeof response.total === 'number'
-        ? response.offset + response.results.length < response.total
-        : response.results.length === response.limit;
+        ? (response.offset ?? 0) + archiveResults.length < response.total
+        : archiveResults.length === (response.limit ?? 10);
 
-    const results = response.results?.map((result) => ({
-      id: result.id,
-      satellite: result.satellite,
-      captureDate: result.captureDate,
-      resolution: result.resolution,
-      cloudCover: result.cloudCover,
-      price: result.price,
-      bbox: result.bbox,
-      thumbnail: (result as any).thumbnail,
+    const results = archiveResults?.map((result) => ({
+      id: result.archiveId,
+      satellite: result.provider || result.constellation,
+      captureDate: result.captureTimestamp,
+      resolution: result.resolution || result.gsd,
+      cloudCover: result.cloudCoveragePercent,
+      price: result.priceForOneSquareKm,
+      bbox: result.footprint, // WKT polygon
+      thumbnail: result.thumbnailUrls ? Object.values(result.thumbnailUrls)[0] : undefined,
     })) ?? [];
 
     const page: SearchSessionPage = {
       index: pageIndex,
-      offset: response.offset,
-      limit: response.limit,
+      offset: response.offset ?? 0,
+      limit: response.limit ?? 10,
       count: results.length,
-      total: response.total,
+      total: response.total ?? archiveResults.length,
       results,
       fetchedAt: Date.now(),
     };
@@ -265,10 +266,10 @@ export class SearchSessionService {
       stableStringify(this.normalizeCriteria(sanitizedCriteria));
 
     session.criteria = sanitizedCriteria;
-    session.lastLimit = response.limit;
-    session.lastOffset = response.offset;
+    session.lastLimit = response.limit ?? 10;
+    session.lastOffset = response.offset ?? 0;
     session.updatedAt = Date.now();
-    session.total = response.total;
+    session.total = response.total ?? archiveResults.length;
 
     this.storePage(session, page);
 

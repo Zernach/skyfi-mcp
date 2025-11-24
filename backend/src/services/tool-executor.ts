@@ -742,14 +742,14 @@ export class ToolExecutor {
             logger.info('Order created successfully', {
                 orderId: order.id,
                 status: order.status,
-                price: order.price,
+                orderType: order.orderType,
             });
 
             return {
                 success: true,
                 orderId: order.id,
                 status: order.status,
-                price: order.price,
+                price: undefined, // Price not included in Order response
                 createdAt: order.createdAt,
                 message: `✅ Order created successfully. Order ID: ${order.id}. Track your order status to monitor delivery progress.`,
             };
@@ -952,17 +952,18 @@ export class ToolExecutor {
      * Get order status
      */
     private async getOrderStatus(args: any): Promise<any> {
-        const order = await skyfiClient.getOrder(args.orderId);
+        const orderInfo = await skyfiClient.getOrder(args.orderId);
 
         return {
             success: true,
-            orderId: order.id,
-            status: order.status,
-            createdAt: order.createdAt,
-            updatedAt: order.updatedAt,
-            deliveryUrl: order.deliveryUrl,
-            price: order.price,
-            message: `Order status: ${order.status}`,
+            orderId: orderInfo.order.id,
+            status: orderInfo.order.status,
+            createdAt: orderInfo.order.createdAt,
+            updatedAt: orderInfo.order.updatedAt,
+            deliveryUrl: undefined, // Use getOrderDeliverable API for download links
+            price: undefined, // Price not included in Order response
+            events: orderInfo.events,
+            message: `Order status: ${orderInfo.order.status}`,
         };
     }
 
@@ -1829,7 +1830,7 @@ export class ToolExecutor {
                     imageId: orderSpec.imageId,
                     orderId: order.id,
                     status: order.status,
-                    price: order.price,
+                    price: undefined, // Price not included in Order response
                 });
 
                 logger.info('Order created in batch', {

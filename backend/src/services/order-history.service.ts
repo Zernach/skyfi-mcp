@@ -215,19 +215,20 @@ export class OrderHistoryService {
       filterKeys: Object.keys(mergedFilters),
     });
 
-    const orders = await skyfiClient.listOrders(requestFilters);
+    const response = await skyfiClient.listOrders(requestFilters);
+    const orders = response.orders;
 
     const pageIndex = this.calculatePageIndex(offset, limit);
     const hasMore = orders.length === limit;
 
-    const summarized = orders.map<OrderSummary>((order: any) => ({
+    const summarized = orders.map<OrderSummary>((order) => ({
       id: order.id,
       status: order.status,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
-      price: order.price,
-      currency: order.currency,
-      deliveryUrl: order.deliveryUrl,
+      price: undefined, // Price not included in Order response
+      currency: undefined,
+      deliveryUrl: undefined, // Use getOrderDeliverable API for download links
       metadata: order.metadata,
     }));
 
