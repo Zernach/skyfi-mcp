@@ -77,14 +77,6 @@ export function ConsoleHeader({
               }
             }}
           />
-          <Button
-            icon={ExternalLink}
-            iconPosition="end"
-            buttonStyle="flush"
-            style={{ fontSize: 14, textAlign: 'right', margin: 2 }}
-            label="Presentation"
-            onClick={onOpenSlideDeck}
-          />
         </div>
       )}
     </div>
